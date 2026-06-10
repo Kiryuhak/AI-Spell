@@ -2,7 +2,8 @@ import { API_KEY } from './config.js';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "callGemini") {
-    processText(request.text, request.mode)
+    // Передаем целевой язык в функцию обработки
+    processText(request.text, request.mode, request.targetLang)
       .then(data => sendResponse({ success: true, data: data }))
       .catch(error => sendResponse({ success: false, error: error.message }));
     
@@ -10,7 +11,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-async function processText(textToFix, mode) {
+async function processText(textToFix, mode, targetLang) {
     let promptText = "";
     let temp = 0.1;
     
@@ -27,7 +28,9 @@ async function processText(textToFix, mode) {
         promptText = `Улучши стиль текста. Сделай его деловым. Дай 2 варианта. Верни СТРОГО JSON-массив: [{"clean": "улучшенный текст", "html": "улучшенный текст"}]. Никакого markdown.\n\nТекст:\n${textToFix}`;
     } else if (mode === "translate") {
         temp = 0.1; 
-        promptText = `Переведи этот текст. Если он на русском — переведи на английский. Если на другом языке — переведи на русский. Верни СТРОГО JSON-массив: [{"clean": "переведенный текст", "html": "переведенный текст"}]. Никакого markdown.\n\nТекст:\n${textToFix}`;
+        // Нейросеть будет переводить на язык, который выбрал пользователь
+        const lang = targetLang || "Английский";
+        promptText = `Переведи этот текст на язык: ${lang}. Верни СТРОГО JSON-массив: [{"clean": "переведенный текст", "html": "переведенный текст"}]. Никакого markdown.\n\nТекст:\n${textToFix}`;
     }
 
     const controller = new AbortController();
