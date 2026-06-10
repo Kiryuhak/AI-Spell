@@ -45,7 +45,6 @@ function showInitialMenu(x, y) {
 
     popupUI = document.createElement('div');
     popupUI.id = 'gemini-extension-ui';
-    // Добавили max-width и улучшили тени для компактности
     popupUI.style.cssText = `
         position: absolute; left: ${x}px; top: ${y + 15}px;
         background: #fff; border: 1px solid #e0e0e0;
@@ -79,11 +78,18 @@ function handleActionClick(mode) {
     popupUI.innerHTML = `<div style="padding: 16px; font-weight: 500; color: #555; text-align: center;">⚡ Думаю...</div>`;
     
     chrome.runtime.sendMessage({ action: "callGemini", text: currentSelection.text, mode: mode }, (response) => {
-        if (response.success) {
+        // ЗАЩИТА: Если скрипт уснул и не ответил
+        if (chrome.runtime.lastError) {
+            popupUI.innerHTML = `<div style="padding: 16px; color: #d32f2f; text-align: center;">Сбой связи. Выделите текст заново.</div>`;
+            setTimeout(closePopup, 3000);
+            return;
+        }
+
+        if (response && response.success) {
             showResultsMenu(response.data, mode);
         } else {
-            popupUI.innerHTML = `<div style="padding: 16px; color: #d32f2f; text-align: center;">Ошибка: ${response.error}</div>`;
-            setTimeout(closePopup, 3000);
+            popupUI.innerHTML = `<div style="padding: 16px; color: #d32f2f; text-align: center;">Ошибка: ${response ? response.error : 'Неизвестная ошибка'}</div>`;
+            setTimeout(closePopup, 4000);
         }
     });
 }
@@ -99,23 +105,58 @@ function showResultsMenu(options, mode) {
     if (!document.getElementById('gemini-styles')) {
         const style = document.createElement('style');
         style.id = 'gemini-styles';
-        style.textContent = `#gemini-extension-ui mark { background: #dcfce7; color: #166534; padding: 2px 4px; border-radius: 4px; font-weight: 500; }`;
+        style.textContent = `
+            #gemini-extension-ui mark { background: #dcfce7; color: #166534; padding: 2px 4px; border-radius: 4px; font-weight: 500; }
+            .gemini-btn-action { 
+                background: #f1f3f4; border: none; border-radius: 6px; padding: 6px 12px; 
+                font-size: 13px; cursor: pointer; color: #333; display: flex; align-items: center; gap: 6px; 
+                transition: background 0.2s; font-family: inherit; font-weight: 500;
+            }
+            .gemini-btn-action:hover { background: #e4e6e8; }
+        `;
         document.head.appendChild(style);
     }
 
     options.forEach((opt, index) => {
         const item = document.createElement('div');
-        item.innerHTML = opt.html || opt.clean || opt;
-        // Добавили word-wrap, чтобы длинный текст не ломал ширину
-        item.style.cssText = `padding: 12px 16px; cursor: pointer; border-bottom: ${index < options.length - 1 ? '1px solid #eaeaea' : 'none'}; word-wrap: break-word; white-space: pre-wrap;`;
-        item.onmouseover = () => item.style.backgroundColor = '#f4f6f8';
-        item.onmouseout = () => item.style.backgroundColor = 'transparent';
+        item.style.cssText = `padding: 14px 16px; border-bottom: ${index < options.length - 1 ? '1px solid #eaeaea' : 'none'};`;
         
-        item.onclick = (e) => {
+        // Блок с текстом
+        const textContainer = document.createElement('div');
+        textContainer.innerHTML = opt.html || opt.clean || opt;
+        textContainer.style.cssText = `word-wrap: break-word; white-space: pre-wrap; margin-bottom: 12px;`;
+        
+        // Блок с кнопками
+        const actionsContainer = document.createElement('div');
+        actionsContainer.style.cssText = `display: flex; gap: 8px;`;
+
+        // Кнопка Заменить
+        const replaceBtn = document.createElement('button');
+        replaceBtn.className = 'gemini-btn-action';
+        replaceBtn.innerHTML = `<span>↵</span> Заменить текст`;
+        replaceBtn.onclick = (e) => {
             e.preventDefault();
             insertTextToDOM(opt.clean || opt);
             closePopup();
         };
+
+        // Кнопка Копировать
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'gemini-btn-action';
+        copyBtn.innerHTML = `📋`;
+        copyBtn.title = "Копировать в буфер";
+        copyBtn.onclick = (e) => {
+            e.preventDefault();
+            navigator.clipboard.writeText(opt.clean || opt);
+            copyBtn.innerHTML = `✅`;
+            setTimeout(() => copyBtn.innerHTML = `📋`, 1500); 
+        };
+
+        actionsContainer.appendChild(replaceBtn);
+        actionsContainer.appendChild(copyBtn);
+
+        item.appendChild(textContainer);
+        item.appendChild(actionsContainer);
         popupUI.appendChild(item);
     });
 }
@@ -155,7 +196,6 @@ function closePopup() {
     }
 }
 
-// Вынесли умное позиционирование в отдельную функцию, чтобы оно работало и для первичного меню
 function adjustPopupPosition(mouseX, mouseY) {
     if (!popupUI) return;
     const rect = popupUI.getBoundingClientRect();
