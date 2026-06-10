@@ -1,9 +1,7 @@
 let currentSelection = { text: "", range: null, activeElement: null, start: null, end: null, isInput: false };
 let popupUI = null;
 
-// Слушаем отпускание кнопки мыши
 document.addEventListener('mouseup', (e) => {
-    // Игнорируем клики внутри нашего собственного меню
     if (e.target.closest('#gemini-extension-ui')) return;
 
     setTimeout(() => {
@@ -42,26 +40,27 @@ function saveSelectionState() {
     }
 }
 
-// 1. ОТРИСОВКА ПЕРВИЧНОГО МЕНЮ (Как в Яндексе)
 function showInitialMenu(x, y) {
     closePopup();
 
     popupUI = document.createElement('div');
     popupUI.id = 'gemini-extension-ui';
+    // Добавили max-width и улучшили тени для компактности
     popupUI.style.cssText = `
         position: absolute; left: ${x}px; top: ${y + 15}px;
         background: #fff; border: 1px solid #e0e0e0;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-        border-radius: 8px; z-index: 2147483647;
-        font-family: system-ui, sans-serif; font-size: 14px;
-        color: #333; min-width: 200px; overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        border-radius: 12px; z-index: 2147483647;
+        font-family: system-ui, -apple-system, sans-serif; font-size: 14px;
+        color: #333; width: max-content; min-width: 200px; max-width: 360px; 
+        overflow: hidden; line-height: 1.5;
     `;
 
     const createBtn = (icon, text, mode) => {
         const btn = document.createElement('div');
-        btn.innerHTML = `<span style="margin-right: 8px;">${icon}</span>${text}`;
+        btn.innerHTML = `<span style="margin-right: 10px; font-size: 16px;">${icon}</span>${text}`;
         btn.style.cssText = `padding: 10px 16px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center;`;
-        btn.onmouseover = () => btn.style.backgroundColor = '#f5f5f5';
+        btn.onmouseover = () => btn.style.backgroundColor = '#f4f6f8';
         btn.onmouseout = () => btn.style.backgroundColor = 'transparent';
         btn.onclick = () => handleActionClick(mode);
         return btn;
@@ -73,45 +72,42 @@ function showInitialMenu(x, y) {
     popupUI.appendChild(createBtn('😊', 'Подобрать эмодзи', 'emoji'));
 
     document.body.appendChild(popupUI);
+    adjustPopupPosition(x, y);
 }
 
-// 2. ОБРАБОТКА КЛИКА ПО МЕНЮ
 function handleActionClick(mode) {
-    // Превращаем меню в лоадер
-    popupUI.innerHTML = `<div style="padding: 12px 16px; font-weight: 500; color: #666;">⚡ Обработка...</div>`;
+    popupUI.innerHTML = `<div style="padding: 16px; font-weight: 500; color: #555; text-align: center;">⚡ Думаю...</div>`;
     
-    // Отправляем запрос в фоновый скрипт
     chrome.runtime.sendMessage({ action: "callGemini", text: currentSelection.text, mode: mode }, (response) => {
         if (response.success) {
             showResultsMenu(response.data, mode);
         } else {
-            popupUI.innerHTML = `<div style="padding: 12px 16px; color: red;">Ошибка: ${response.error}</div>`;
+            popupUI.innerHTML = `<div style="padding: 16px; color: #d32f2f; text-align: center;">Ошибка: ${response.error}</div>`;
             setTimeout(closePopup, 3000);
         }
     });
 }
 
-// 3. ОТРИСОВКА ВАРИАНТОВ ОТ НЕЙРОСЕТИ
 function showResultsMenu(options, mode) {
     popupUI.innerHTML = '';
     
     const header = document.createElement('div');
     header.textContent = mode === "emoji" ? 'Варианты с эмодзи:' : 'Выберите вариант:';
-    header.style.cssText = 'padding: 8px 16px; font-size: 12px; color: #888; border-bottom: 1px solid #eee; background: #fafafa;';
+    header.style.cssText = 'padding: 10px 16px; font-size: 13px; font-weight: 600; color: #666; border-bottom: 1px solid #eaeaea; background: #fdfdfd;';
     popupUI.appendChild(header);
 
-    // Добавляем стили для подсветки ошибок (<mark>)
     if (!document.getElementById('gemini-styles')) {
         const style = document.createElement('style');
         style.id = 'gemini-styles';
-        style.textContent = `#gemini-extension-ui mark { background: #ffeeb2; color: #b47a00; padding: 0 2px; border-radius: 3px; }`;
+        style.textContent = `#gemini-extension-ui mark { background: #dcfce7; color: #166534; padding: 2px 4px; border-radius: 4px; font-weight: 500; }`;
         document.head.appendChild(style);
     }
 
     options.forEach((opt, index) => {
         const item = document.createElement('div');
         item.innerHTML = opt.html || opt.clean || opt;
-        item.style.cssText = `padding: 10px 16px; cursor: pointer; border-bottom: ${index < options.length - 1 ? '1px solid #f0f0f0' : 'none'}`;
+        // Добавили word-wrap, чтобы длинный текст не ломал ширину
+        item.style.cssText = `padding: 12px 16px; cursor: pointer; border-bottom: ${index < options.length - 1 ? '1px solid #eaeaea' : 'none'}; word-wrap: break-word; white-space: pre-wrap;`;
         item.onmouseover = () => item.style.backgroundColor = '#f4f6f8';
         item.onmouseout = () => item.style.backgroundColor = 'transparent';
         
@@ -124,7 +120,6 @@ function showResultsMenu(options, mode) {
     });
 }
 
-// 4. ВСТАВКА ТЕКСТА НА САЙТ
 function insertTextToDOM(newText) {
     const { isInput, activeElement, start, end, range } = currentSelection;
 
@@ -157,5 +152,20 @@ function closePopup() {
     if (popupUI) {
         popupUI.remove();
         popupUI = null;
+    }
+}
+
+// Вынесли умное позиционирование в отдельную функцию, чтобы оно работало и для первичного меню
+function adjustPopupPosition(mouseX, mouseY) {
+    if (!popupUI) return;
+    const rect = popupUI.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - mouseY;
+    
+    if (mouseX + rect.width > window.innerWidth) {
+        popupUI.style.left = `${window.innerWidth - rect.width - 20 + window.scrollX}px`;
+    }
+    
+    if (spaceBelow < rect.height + 40) {
+        popupUI.style.top = `${mouseY - rect.height - 15 + window.scrollY}px`;
     }
 }
