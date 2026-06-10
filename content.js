@@ -1,22 +1,26 @@
 let currentSelection = { text: "", range: null, activeElement: null, start: null, end: null, isInput: false };
 let popupUI = null;
 
-// Набор цветных иконок в стиле Material 3 Expressive
+// Набор иконок (Цветные M3 для тулбара и строгие контурные для модального окна)
 const ICONS = {
     google: `<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></svg>`,
     edit: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#E8F0FE" stroke="#1A73E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>`,
     copy: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#E0F2F1" stroke="#00897B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none"></path></svg>`,
-    
-    // НОВЫЙ ИДЕАЛЬНЫЙ ГЛОБУС
     translate: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#E6F4EA" stroke="#1E8E3E" stroke-width="2"/><line x1="2" y1="12" x2="22" y2="12" stroke="#1E8E3E" stroke-width="2" stroke-linecap="round"/><ellipse cx="12" cy="12" rx="4.5" ry="10" stroke="#1E8E3E" stroke-width="2" fill="none"/></svg>`,
-    
     check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#34A853" stroke="#34A853" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="8 12 11 15 16 9" stroke="#FFFFFF" stroke-width="2"></polyline></svg>`,
     replace: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D93025" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>`,
-    close: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+    closeColored: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
     spell: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#FCE8E6" stroke="#D93025" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
     rephrase: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#F3E8FD" stroke="#9334E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14" fill="none"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3" fill="none"></path></svg>`,
     style: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#FEF7E0" stroke="#F9AB00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="#FEF7E0"></polygon></svg>`,
-    emoji: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#FFF3E0" stroke="#FA7B17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="#FFF3E0"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2" fill="none"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>`
+    emoji: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#FFF3E0" stroke="#FA7B17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="#FFF3E0"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2" fill="none"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>`,
+    
+    // Новые строгие иконки специально для окна перевода
+    chevronDown: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
+    layoutSplit: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="15" y1="3" x2="15" y2="21"></line></svg>`,
+    closeStandard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+    replaceCurved: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15l-5-5 5-5"></path><path d="M5 10h11a4 4 0 0 1 4 4v4"></path></svg>`,
+    copyStandard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`
 };
 
 document.addEventListener('mouseup', (e) => {
@@ -183,7 +187,7 @@ function showToolbarMenu(x, y) {
 
     popupUI.appendChild(divider());
 
-    popupUI.appendChild(createBtn(ICONS.close, '', 'Закрыть панель', () => {
+    popupUI.appendChild(createBtn(ICONS.closeColored, '', 'Закрыть панель', () => {
         closePopup();
     }));
 
@@ -261,25 +265,8 @@ function handleActionClick(mode) {
 
 function showResultsMenu(options, mode) {
     popupUI.innerHTML = '';
-    popupUI.style.width = '320px'; 
     
-    const header = document.createElement('div');
-    if (mode === "translate") header.innerHTML = `<span style="display:flex; align-items:center; gap:6px;">${ICONS.translate} Перевод</span>`;
-    else if (mode === "emoji") header.innerHTML = `<span style="display:flex; align-items:center; gap:6px;">${ICONS.emoji} Варианты с эмодзи</span>`;
-    else header.innerHTML = `Выберите вариант`;
-    
-    header.style.cssText = 'padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333; border-bottom: 1px solid #eaeaea; background: #fafafa; display: flex; justify-content: space-between; align-items: center;';
-    
-    const closeBtn = document.createElement('div');
-    closeBtn.innerHTML = ICONS.close;
-    closeBtn.style.cssText = 'cursor: pointer; color: #777; display: flex; align-items: center; padding: 4px; border-radius: 4px; transition: background 0.15s;';
-    closeBtn.onmouseover = () => closeBtn.style.background = '#e4e4e4';
-    closeBtn.onmouseout = () => closeBtn.style.background = 'transparent';
-    closeBtn.onclick = closePopup;
-    header.appendChild(closeBtn);
-    
-    popupUI.appendChild(header);
-
+    // Стили для всех окон
     if (!document.getElementById('gemini-styles')) {
         const style = document.createElement('style');
         style.id = 'gemini-styles';
@@ -291,48 +278,162 @@ function showResultsMenu(options, mode) {
                 transition: all 0.15s; font-family: inherit; font-weight: 500;
             }
             .gemini-btn-action:hover { background: #ebebeb; color: #222; }
+            
+            /* Новые стили для кнопок перевода (как на скриншоте) */
+            .gemini-translate-btn {
+                background: #F1F3F4;
+                border: none;
+                border-radius: 8px;
+                padding: 8px 14px;
+                font-size: 13px;
+                color: #1f1f1f;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+                transition: background 0.2s;
+                font-family: inherit;
+            }
+            .gemini-translate-btn:hover { background: #E8EAED; }
+            .gemini-translate-btn.icon-only { padding: 8px; }
         `;
         document.head.appendChild(style);
     }
 
-    options.forEach((opt, index) => {
-        const item = document.createElement('div');
-        item.style.cssText = `padding: 12px; border-bottom: ${index < options.length - 1 ? '1px solid #eaeaea' : 'none'};`;
+    if (mode === "translate") {
+        // === ИДЕАЛЬНАЯ КОПИЯ ОКНА ПЕРЕВОДА ===
+        popupUI.style.width = '320px'; 
+        popupUI.style.display = 'block';
+        
+        // Шапка
+        const header = document.createElement('div');
+        header.style.cssText = 'padding: 12px 16px; font-size: 14px; font-weight: 500; color: #1f1f1f; border-bottom: 1px solid #f0f0f0; background: #ffffff; display: flex; justify-content: space-between; align-items: center;';
+        
+        const langWrap = document.createElement('div');
+        langWrap.style.cssText = 'display: flex; align-items: center; gap: 6px; cursor: pointer;';
+        langWrap.innerHTML = `<span>Английский</span> ${ICONS.chevronDown}`;
+        
+        const rightIcons = document.createElement('div');
+        rightIcons.style.cssText = 'display: flex; align-items: center; gap: 12px; color: #444;';
+        
+        const toggleIcon = document.createElement('div');
+        toggleIcon.innerHTML = ICONS.layoutSplit;
+        toggleIcon.style.cssText = 'cursor: pointer; display: flex; align-items: center;';
+        
+        const closeBtn = document.createElement('div');
+        closeBtn.innerHTML = ICONS.closeStandard;
+        closeBtn.style.cssText = 'cursor: pointer; display: flex; align-items: center;';
+        closeBtn.onclick = closePopup;
+        
+        rightIcons.appendChild(toggleIcon);
+        rightIcons.appendChild(closeBtn);
+        
+        header.appendChild(langWrap);
+        header.appendChild(rightIcons);
+        popupUI.appendChild(header);
+
+        // Контент перевода
+        const opt = options[0]; 
+        const textToInsert = opt.clean || opt;
+        
+        const contentPane = document.createElement('div');
+        contentPane.style.cssText = 'padding: 16px; display: flex; flex-direction: column; gap: 16px; background: #ffffff;';
         
         const textContainer = document.createElement('div');
-        textContainer.innerHTML = opt.html || opt.clean || opt;
-        textContainer.style.cssText = `word-wrap: break-word; white-space: pre-wrap; margin-bottom: 12px; color: #222;`;
+        textContainer.innerHTML = opt.html || textToInsert;
+        textContainer.style.cssText = 'word-wrap: break-word; white-space: pre-wrap; font-size: 14px; color: #1f1f1f; line-height: 1.5; font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;';
+        contentPane.appendChild(textContainer);
         
+        // Кнопки внизу
         const actionsContainer = document.createElement('div');
-        actionsContainer.style.cssText = `display: flex; gap: 8px;`;
-
+        actionsContainer.style.cssText = 'display: flex; gap: 8px;';
+        
         const replaceBtn = document.createElement('button');
-        replaceBtn.className = 'gemini-btn-action';
-        replaceBtn.innerHTML = `${ICONS.replace} Заменить`;
+        replaceBtn.className = 'gemini-translate-btn';
+        replaceBtn.innerHTML = `${ICONS.replaceCurved} Заменить текст`;
         replaceBtn.onclick = (e) => {
             e.preventDefault();
-            insertTextToDOM(opt.clean || opt);
+            insertTextToDOM(textToInsert);
             closePopup();
         };
-
+        
         const copyBtn = document.createElement('button');
-        copyBtn.className = 'gemini-btn-action';
-        copyBtn.innerHTML = ICONS.copy;
-        copyBtn.title = "Копировать в буфер";
+        copyBtn.className = 'gemini-translate-btn icon-only';
+        copyBtn.innerHTML = ICONS.copyStandard;
         copyBtn.onclick = (e) => {
             e.preventDefault();
-            navigator.clipboard.writeText(opt.clean || opt);
-            copyBtn.innerHTML = ICONS.check;
-            setTimeout(() => copyBtn.innerHTML = ICONS.copy, 1500); 
+            navigator.clipboard.writeText(textToInsert);
+            // Анимация копирования
+            copyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            setTimeout(() => copyBtn.innerHTML = ICONS.copyStandard, 1500);
         };
-
+        
         actionsContainer.appendChild(replaceBtn);
         actionsContainer.appendChild(copyBtn);
+        contentPane.appendChild(actionsContainer);
+        
+        popupUI.appendChild(contentPane);
 
-        item.appendChild(textContainer);
-        item.appendChild(actionsContainer);
-        popupUI.appendChild(item);
-    });
+    } else {
+        // === СТАНДАРТНАЯ ВЕРТИКАЛЬНАЯ КАРТОЧКА ДЛЯ ОСТАЛЬНЫХ ФУНКЦИЙ ===
+        popupUI.style.width = '320px'; 
+        popupUI.style.display = 'block';
+        
+        const header = document.createElement('div');
+        if (mode === "emoji") header.innerHTML = `<span style="display:flex; align-items:center; gap:6px;">${ICONS.emoji} Варианты с эмодзи</span>`;
+        else header.innerHTML = `Выберите вариант`;
+        
+        header.style.cssText = 'padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333; border-bottom: 1px solid #eaeaea; background: #fafafa; display: flex; justify-content: space-between; align-items: center;';
+        
+        const closeBtn = document.createElement('div');
+        closeBtn.innerHTML = ICONS.closeStandard;
+        closeBtn.style.cssText = 'cursor: pointer; color: #777; display: flex; align-items: center; padding: 4px; border-radius: 4px; transition: background 0.15s;';
+        closeBtn.onmouseover = () => closeBtn.style.background = '#e4e4e4';
+        closeBtn.onmouseout = () => closeBtn.style.background = 'transparent';
+        closeBtn.onclick = closePopup;
+        header.appendChild(closeBtn);
+        
+        popupUI.appendChild(header);
+
+        options.forEach((opt, index) => {
+            const item = document.createElement('div');
+            item.style.cssText = `padding: 12px; border-bottom: ${index < options.length - 1 ? '1px solid #eaeaea' : 'none'};`;
+            
+            const textContainer = document.createElement('div');
+            textContainer.innerHTML = opt.html || opt.clean || opt;
+            textContainer.style.cssText = `word-wrap: break-word; white-space: pre-wrap; margin-bottom: 12px; color: #222; line-height: 1.5;`;
+            
+            const actionsContainer = document.createElement('div');
+            actionsContainer.style.cssText = `display: flex; gap: 8px;`;
+
+            const replaceBtn = document.createElement('button');
+            replaceBtn.className = 'gemini-btn-action';
+            replaceBtn.innerHTML = `${ICONS.replace} Заменить`;
+            replaceBtn.onclick = (e) => {
+                e.preventDefault();
+                insertTextToDOM(opt.clean || opt);
+                closePopup();
+            };
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'gemini-btn-action';
+            copyBtn.innerHTML = ICONS.copy;
+            copyBtn.title = "Копировать в буфер";
+            copyBtn.onclick = (e) => {
+                e.preventDefault();
+                navigator.clipboard.writeText(opt.clean || opt);
+                copyBtn.innerHTML = ICONS.check;
+                setTimeout(() => copyBtn.innerHTML = ICONS.copy, 1500); 
+            };
+
+            actionsContainer.appendChild(replaceBtn);
+            actionsContainer.appendChild(copyBtn);
+
+            item.appendChild(textContainer);
+            item.appendChild(actionsContainer);
+            popupUI.appendChild(item);
+        });
+    }
 }
 
 function insertTextToDOM(newText) {
