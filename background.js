@@ -25,14 +25,15 @@ async function processText(textToFix, mode) {
     } else if (mode === "style") {
         temp = 0.3; 
         promptText = `Улучши стиль текста. Сделай его деловым. Дай 2 варианта. Верни СТРОГО JSON-массив: [{"clean": "улучшенный текст", "html": "улучшенный текст"}]. Никакого markdown.\n\nТекст:\n${textToFix}`;
+    } else if (mode === "translate") {
+        temp = 0.1; 
+        promptText = `Переведи этот текст. Если он на русском — переведи на английский. Если на другом языке — переведи на русский. Верни СТРОГО JSON-массив: [{"clean": "переведенный текст", "html": "переведенный текст"}]. Никакого markdown.\n\nТекст:\n${textToFix}`;
     }
 
-    // Таймаут на 12 секунд
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000);
 
     try {
-        // Возвращаемся на актуальную и самую быструю модель
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${API_KEY}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -51,7 +52,6 @@ async function processText(textToFix, mode) {
 
         const data = await response.json();
         
-        // Перехватываем ошибку 503 High Demand и выдаем понятный текст
         if (response.status === 503 || (data.error && data.error.message.includes("high demand"))) {
             throw new Error("Сервера Google сейчас перегружены. Попробуйте через пару минут.");
         }

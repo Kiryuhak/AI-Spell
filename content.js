@@ -8,7 +8,7 @@ document.addEventListener('mouseup', (e) => {
         const text = getSelectedText();
         if (text && text.trim().length > 0) {
             saveSelectionState();
-            showInitialMenu(e.pageX, e.pageY);
+            showToolbarMenu(e.pageX, e.pageY); // Теперь сначала показываем тулбар
         } else {
             closePopup();
         }
@@ -40,13 +40,80 @@ function saveSelectionState() {
     }
 }
 
-function showInitialMenu(x, y) {
+// 1. ГОРИЗОНТАЛЬНАЯ ПАНЕЛЬ ИНСТРУМЕНТОВ (Тулбар)
+function showToolbarMenu(x, y) {
     closePopup();
 
     popupUI = document.createElement('div');
     popupUI.id = 'gemini-extension-ui';
     popupUI.style.cssText = `
         position: absolute; left: ${x}px; top: ${y + 15}px;
+        background: #ffffff; border: 1px solid #e0e0e0;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        border-radius: 8px; z-index: 2147483647;
+        font-family: system-ui, -apple-system, sans-serif; font-size: 14px;
+        color: #333; display: flex; align-items: center; padding: 4px; gap: 2px;
+    `;
+
+    const createBtn = (icon, text, title, onClick) => {
+        const btn = document.createElement('div');
+        btn.innerHTML = `<span style="font-size: 16px;">${icon}</span>${text ? `<span style="margin-left: 6px; font-weight: 500;">${text}</span>` : ''}`;
+        btn.title = title;
+        btn.style.cssText = `padding: 6px 10px; cursor: pointer; border-radius: 6px; display: flex; align-items: center; transition: background 0.1s; color: #444;`;
+        btn.onmouseover = () => btn.style.backgroundColor = '#f0f2f5';
+        btn.onmouseout = () => btn.style.backgroundColor = 'transparent';
+        btn.onclick = (e) => { e.stopPropagation(); onClick(e, btn); };
+        return btn;
+    };
+
+    const divider = () => {
+        const d = document.createElement('div');
+        d.style.cssText = `width: 1px; height: 18px; background: #e0e0e0; margin: 0 4px;`;
+        return d;
+    };
+
+    // Кнопка 1: Поиск в Google
+    popupUI.appendChild(createBtn('🔍', '', 'Искать в Google', () => {
+        window.open('https://www.google.com/search?q=' + encodeURIComponent(currentSelection.text), '_blank');
+        closePopup();
+    }));
+
+    popupUI.appendChild(divider());
+
+    // Кнопка 2: Редактировать (Разворачивает AI меню)
+    popupUI.appendChild(createBtn('✨', 'Редактировать', 'Функции нейросети', () => {
+        const rect = popupUI.getBoundingClientRect();
+        showAIMenu(rect.left + window.scrollX, rect.top + window.scrollY);
+    }));
+
+    popupUI.appendChild(divider());
+
+    // Кнопка 3: Копировать
+    popupUI.appendChild(createBtn('📋', '', 'Копировать', (e, btn) => {
+        navigator.clipboard.writeText(currentSelection.text);
+        btn.innerHTML = `<span style="font-size: 16px;">✅</span>`;
+        setTimeout(() => closePopup(), 1000);
+    }));
+
+    popupUI.appendChild(divider());
+
+    // Кнопка 4: Перевести
+    popupUI.appendChild(createBtn('🌐', '', 'Перевести', () => {
+        handleActionClick('translate');
+    }));
+
+    document.body.appendChild(popupUI);
+    adjustPopupPosition(x, y);
+}
+
+// 2. ВЕРТИКАЛЬНОЕ МЕНЮ AI (Открывается по кнопке "Редактировать")
+function showAIMenu(x, y) {
+    closePopup();
+
+    popupUI = document.createElement('div');
+    popupUI.id = 'gemini-extension-ui';
+    popupUI.style.cssText = `
+        position: absolute; left: ${x}px; top: ${y}px;
         background: #fff; border: 1px solid #e0e0e0;
         box-shadow: 0 8px 24px rgba(0,0,0,0.12);
         border-radius: 12px; z-index: 2147483647;
@@ -55,7 +122,7 @@ function showInitialMenu(x, y) {
         overflow: hidden; line-height: 1.5;
     `;
 
-    const createBtn = (icon, text, mode) => {
+    const createMenuBtn = (icon, text, mode) => {
         const btn = document.createElement('div');
         btn.innerHTML = `<span style="margin-right: 10px; font-size: 16px;">${icon}</span>${text}`;
         btn.style.cssText = `padding: 10px 16px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center;`;
@@ -65,22 +132,24 @@ function showInitialMenu(x, y) {
         return btn;
     };
 
-    popupUI.appendChild(createBtn('✍️', 'Исправить ошибки', 'spellcheck'));
-    popupUI.appendChild(createBtn('🔄', 'Другими словами', 'rephrase'));
-    popupUI.appendChild(createBtn('✨', 'Улучшить стиль', 'style'));
-    popupUI.appendChild(createBtn('😊', 'Подобрать эмодзи', 'emoji'));
+    popupUI.appendChild(createMenuBtn('✍️', 'Исправить ошибки', 'spellcheck'));
+    popupUI.appendChild(createMenuBtn('🔄', 'Другими словами', 'rephrase'));
+    popupUI.appendChild(createMenuBtn('✨', 'Улучшить стиль', 'style'));
+    popupUI.appendChild(createMenuBtn('😊', 'Подобрать эмодзи', 'emoji'));
 
     document.body.appendChild(popupUI);
     adjustPopupPosition(x, y);
 }
 
+// 3. ОТПРАВКА ЗАПРОСА К НЕЙРОСЕТИ
 function handleActionClick(mode) {
-    popupUI.innerHTML = `<div style="padding: 16px; font-weight: 500; color: #555; text-align: center;">⚡ Думаю...</div>`;
+    // Превращаем тулбар или меню в лоадер
+    popupUI.style.width = 'max-content';
+    popupUI.innerHTML = `<div style="padding: 12px 16px; font-weight: 500; color: #555; display: flex; align-items: center; gap: 8px;"><span>⚡</span> Думаю...</div>`;
     
     chrome.runtime.sendMessage({ action: "callGemini", text: currentSelection.text, mode: mode }, (response) => {
-        // ЗАЩИТА: Если скрипт уснул и не ответил
         if (chrome.runtime.lastError) {
-            popupUI.innerHTML = `<div style="padding: 16px; color: #d32f2f; text-align: center;">Сбой связи. Выделите текст заново.</div>`;
+            popupUI.innerHTML = `<div style="padding: 12px 16px; color: #d32f2f;">Сбой связи. Выделите текст заново.</div>`;
             setTimeout(closePopup, 3000);
             return;
         }
@@ -88,18 +157,32 @@ function handleActionClick(mode) {
         if (response && response.success) {
             showResultsMenu(response.data, mode);
         } else {
-            popupUI.innerHTML = `<div style="padding: 16px; color: #d32f2f; text-align: center;">Ошибка: ${response ? response.error : 'Неизвестная ошибка'}</div>`;
+            popupUI.innerHTML = `<div style="padding: 12px 16px; color: #d32f2f;">Ошибка: ${response ? response.error : 'Неизвестная ошибка'}</div>`;
             setTimeout(closePopup, 4000);
         }
     });
 }
 
+// 4. ПОКАЗ РЕЗУЛЬТАТОВ (КАРТОЧКИ)
 function showResultsMenu(options, mode) {
     popupUI.innerHTML = '';
     
     const header = document.createElement('div');
-    header.textContent = mode === "emoji" ? 'Варианты с эмодзи:' : 'Выберите вариант:';
-    header.style.cssText = 'padding: 10px 16px; font-size: 13px; font-weight: 600; color: #666; border-bottom: 1px solid #eaeaea; background: #fdfdfd;';
+    if (mode === "emoji") header.textContent = 'Варианты с эмодзи:';
+    else if (mode === "translate") header.textContent = 'Перевод:';
+    else header.textContent = 'Выберите вариант:';
+    
+    header.style.cssText = 'padding: 10px 16px; font-size: 13px; font-weight: 600; color: #666; border-bottom: 1px solid #eaeaea; background: #fdfdfd; display: flex; justify-content: space-between; align-items: center;';
+    
+    // Кнопка закрытия окна результатов
+    const closeBtn = document.createElement('span');
+    closeBtn.textContent = '✖';
+    closeBtn.style.cssText = 'cursor: pointer; color: #999; padding: 2px 6px; border-radius: 4px;';
+    closeBtn.onmouseover = () => closeBtn.style.background = '#eee';
+    closeBtn.onmouseout = () => closeBtn.style.background = 'transparent';
+    closeBtn.onclick = closePopup;
+    header.appendChild(closeBtn);
+    
     popupUI.appendChild(header);
 
     if (!document.getElementById('gemini-styles')) {
@@ -121,26 +204,22 @@ function showResultsMenu(options, mode) {
         const item = document.createElement('div');
         item.style.cssText = `padding: 14px 16px; border-bottom: ${index < options.length - 1 ? '1px solid #eaeaea' : 'none'};`;
         
-        // Блок с текстом
         const textContainer = document.createElement('div');
         textContainer.innerHTML = opt.html || opt.clean || opt;
         textContainer.style.cssText = `word-wrap: break-word; white-space: pre-wrap; margin-bottom: 12px;`;
         
-        // Блок с кнопками
         const actionsContainer = document.createElement('div');
         actionsContainer.style.cssText = `display: flex; gap: 8px;`;
 
-        // Кнопка Заменить
         const replaceBtn = document.createElement('button');
         replaceBtn.className = 'gemini-btn-action';
-        replaceBtn.innerHTML = `<span>↵</span> Заменить текст`;
+        replaceBtn.innerHTML = `<span>↵</span> Заменить`;
         replaceBtn.onclick = (e) => {
             e.preventDefault();
             insertTextToDOM(opt.clean || opt);
             closePopup();
         };
 
-        // Кнопка Копировать
         const copyBtn = document.createElement('button');
         copyBtn.className = 'gemini-btn-action';
         copyBtn.innerHTML = `📋`;
@@ -163,7 +242,6 @@ function showResultsMenu(options, mode) {
 
 function insertTextToDOM(newText) {
     const { isInput, activeElement, start, end, range } = currentSelection;
-
     try {
         if (isInput && activeElement) {
             const val = activeElement.value;
