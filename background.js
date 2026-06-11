@@ -1,78 +1,104 @@
-import { API_KEY } from './config.js';
+import { MISTRAL_API_KEY } from './config.js';
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "callGemini") {
-    // Передаем целевой язык в функцию обработки
     processText(request.text, request.mode, request.targetLang)
       .then(data => sendResponse({ success: true, data: data }))
       .catch(error => sendResponse({ success: false, error: error.message }));
-    
     return true; 
   }
 });
 
 async function processText(textToFix, mode, targetLang) {
-    let promptText = "";
-    let temp = 0.1;
+    let systemPrompt = "";
+    let temperature = 0.1;
     
+    // В Mistral для работы response_format обязательно слово "JSON" в промпте
+    const baseJsonInstruction = 'ОБЯЗАТЕЛЬНО верни валидный JSON-объект строго в таком формате: { "options": [{"clean": "чистый текст", "html": "текст"}] }. Никакого лишнего текста, markdown-блоков или пояснений.';
+
     if (mode === "spellcheck") {
-        promptText = `Исправь ошибки. Дай 2 варианта. Верни СТРОГО JSON-массив: [{"clean": "чистый текст", "html": "текст, где ТОЛЬКО измененные слова обернуты в <mark>"}]. Не оборачивай неизмененные слова.\n\nТекст:\n${textToFix}`;
+        temperature = 0.0;
+        systemPrompt = `Ты профессиональный русский корректор. Твоя задача — исправить грамматические, орфографические и пунктуационные ошибки в тексте пользователя.
+ПРАВИЛА:
+1. В поле "html" оберни исправленные слова в тег <mark>.
+2. КРИТИЧЕСКИ ВАЖНО: Оборачивай в тег <mark> ВСЁ СЛОВО ЦЕЛИКОМ! Категорически запрещено оборачивать отдельные буквы, слоги или части слова.
+❌ КАК НЕЛЬЗЯ ДЕЛАТЬ: Пишу код для пров<mark>ер</mark>ки.
+✅ КАК ПРАВИЛЬНО: Пишу код для <mark>проверки</mark>.
+3. Если слово изначально правильное, вообще не трогай его.
+${baseJsonInstruction}`;
     } else if (mode === "emoji") {
-        temp = 0.7; 
-        promptText = `Расставь эмодзи. Дай 3 варианта. Верни СТРОГО JSON-массив: [{"clean": "текст с эмодзи", "html": "текст с эмодзи"}]. Никакого markdown.\n\nТекст:\n${textToFix}`;
+        temperature = 0.6;
+        systemPrompt = `Добавь подходящие по смыслу эмодзи в текст пользователя. ${baseJsonInstruction}`;
     } else if (mode === "rephrase") {
-        temp = 0.5; 
-        promptText = `Перепиши другими словами. Дай 3 варианта. Верни СТРОГО JSON-массив: [{"clean": "перефразированный текст", "html": "перефразированный текст"}]. Никакого markdown.\n\nТекст:\n${textToFix}`;
+        temperature = 0.5;
+        systemPrompt = `Ты профессиональный русский писатель и редактор. Твоя задача — перефразировать текст пользователя, сохранив смысл, но сделав его более красивым и читаемым.
+ПРАВИЛА:
+1. Сделай 2 абсолютно разных варианта (добавь их в массив options).
+Вариант 1: Более живой, современный и разговорный.
+Вариант 2: Лаконичный, строгий и четкий.
+2. КРИТИЧЕСКИ ВАЖНО: Текст должен быть грамматически безупречным на русском языке. Следи за падежами и окончаниями.
+${baseJsonInstruction}`;
     } else if (mode === "style") {
-        temp = 0.3; 
-        promptText = `Улучши стиль текста. Сделай его деловым. Дай 2 варианта. Верни СТРОГО JSON-массив: [{"clean": "улучшенный текст", "html": "улучшенный текст"}]. Никакого markdown.\n\nТекст:\n${textToFix}`;
+        temperature = 0.3;
+        systemPrompt = `Улучши стиль текста пользователя, сделай его профессиональным и деловым. Сделай 2 варианта. ${baseJsonInstruction}`;
     } else if (mode === "translate") {
-        temp = 0.1; 
-        // Нейросеть будет переводить на язык, который выбрал пользователь
-        const lang = targetLang || "Английский";
-        promptText = `Переведи этот текст на язык: ${lang}. Верни СТРОГО JSON-массив: [{"clean": "переведенный текст", "html": "переведенный текст"}]. Никакого markdown.\n\nТекст:\n${textToFix}`;
+        temperature = 0.1;
+        systemPrompt = `You are a professional translator. Translate the user's text into the following language: ${targetLang || "English"}.
+CRITICAL: The translated text MUST be completely in the target language.
+You must return a valid JSON object strictly in this format: { "options": [{"clean": "translation result", "html": "translation result"}] }.
+Do not add any markdown, explanations, or extra text.`;
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${API_KEY}`, {
+        const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal, 
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${MISTRAL_API_KEY}`
+          },
+          signal: controller.signal,
           body: JSON.stringify({
-            contents: [{ parts: [{ text: promptText }] }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              temperature: temp, 
-              maxOutputTokens: 800
-            }
+            model: "mistral-large-latest", // Самая умная модель Mistral
+            temperature: temperature,
+            max_tokens: 1024,
+            response_format: { type: "json_object" }, // Форсируем JSON
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: textToFix }
+            ]
           })
         });
 
-        clearTimeout(timeoutId); 
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errMsg = errorData.message || response.statusText;
+            throw new Error(`Ошибка Mistral: ${errMsg}`);
+        }
 
         const data = await response.json();
+        const rawText = data.choices[0].message.content.trim();
+        const parsedJson = JSON.parse(rawText);
         
-        if (response.status === 503 || (data.error && data.error.message.includes("high demand"))) {
-            throw new Error("Сервера Google сейчас перегружены. Попробуйте через пару минут.");
+        let result = parsedJson.options;
+        if (!result || !Array.isArray(result)) {
+            const firstKey = Object.keys(parsedJson)[0];
+            result = parsedJson[firstKey];
+        }
+        
+        if (!Array.isArray(result)) {
+            result = [parsedJson];
         }
 
-        if (data.error) throw new Error(data.error.message);
-
-        if (data.candidates && data.candidates.length > 0) {
-            let rawText = data.candidates[0].content.parts[0].text;
-            const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-            if (jsonMatch) rawText = jsonMatch[0];
-            else throw new Error("Сбой формата ответа.");
-            
-            return JSON.parse(rawText);
-        }
-        throw new Error("Пустой ответ от нейросети.");
+        return result;
     } catch (error) {
         if (error.name === 'AbortError') {
-            throw new Error("Сервер слишком долго думает (таймаут).");
+            throw new Error("Таймаут сервера Mistral. Слишком долгое ожидание.");
         }
         throw error;
     }

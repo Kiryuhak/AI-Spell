@@ -1,12 +1,12 @@
 let currentSelection = { text: "", range: null, activeElement: null, start: null, end: null, isInput: false };
 let popupUI = null;
-let currentTargetLang = "Английский"; // Сохраняем выбранный язык
+let currentTargetLang = "Английский";
 
 const ICONS = {
     google: `<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></svg>`,
     edit: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#E8F0FE" stroke="#1A73E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>`,
     copy: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#E0F2F1" stroke="#00897B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none"></path></svg>`,
-    translate: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="#E6F4EA" stroke="#1E8E3E" stroke-width="2"/><line x1="2" y1="12" x2="22" y2="12" stroke="#1E8E3E" stroke-width="2" stroke-linecap="round"/><ellipse cx="12" cy="12" rx="4.5" ry="10" stroke="#1E8E3E" stroke-width="2" fill="none"/></svg>`,
+    translate: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E8E3E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path><path d="M2 12h20"></path></svg>`,
     check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#34A853" stroke="#34A853" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="8 12 11 15 16 9" stroke="#FFFFFF" stroke-width="2"></polyline></svg>`,
     replace: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D93025" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>`,
     closeColored: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5F6368" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
@@ -22,23 +22,25 @@ const ICONS = {
     copyStandard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`
 };
 
+document.addEventListener('mousedown', (e) => {
+    if (popupUI && !popupUI.contains(e.target)) {
+        closePopup();
+    }
+});
+
 document.addEventListener('mouseup', (e) => {
     if (e.target.closest('#gemini-extension-ui')) return;
-
     setTimeout(() => {
         const text = getSelectedText();
         if (text && text.trim().length > 0) {
             saveSelectionState();
             showToolbarMenu(e.pageX, e.pageY);
-        } else {
-            closePopup();
         }
     }, 10);
 });
 
 document.addEventListener('keydown', (e) => {
     if (e.target.closest('#gemini-extension-ui')) return;
-
     const isSelectAll = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a';
     if (isSelectAll) {
         setTimeout(() => {
@@ -47,17 +49,13 @@ document.addEventListener('keydown', (e) => {
                 saveSelectionState();
                 const coords = getSelectionCoords();
                 showToolbarMenu(coords.x, coords.y);
-            } else {
-                closePopup();
             }
         }, 50);
         return;
     }
-
     if (e.altKey && !e.ctrlKey && !e.shiftKey) {
         const key = e.key.toLowerCase();
         let mode = null;
-        
         if (key === 'r' || key === 'к') mode = 'spellcheck';
         else if (key === 'u' || key === 'г') mode = 'rephrase';
         else if (key === 'y' || key === 'н') mode = 'style';
@@ -69,7 +67,6 @@ document.addEventListener('keydown', (e) => {
                 e.preventDefault(); 
                 saveSelectionState();
                 const coords = getSelectionCoords();
-                
                 showAIMenu(coords.x, coords.y);
                 handleActionClick(mode);
             }
@@ -104,7 +101,6 @@ function saveSelectionState() {
 function getSelectionCoords() {
     const activeEl = document.activeElement;
     let rect = null;
-
     if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')) {
         rect = activeEl.getBoundingClientRect();
     } else {
@@ -113,15 +109,12 @@ function getSelectionCoords() {
             rect = sel.getRangeAt(0).getBoundingClientRect();
         }
     }
-
     if (rect) {
         let x = rect.left + window.scrollX;
         let y = rect.bottom + window.scrollY;
-
         const viewportBottom = window.scrollY + window.innerHeight;
         if (y > viewportBottom - 80) y = viewportBottom - 80; 
         if (y < window.scrollY + 20) y = window.scrollY + 40;
-        
         return { x: x, y: y };
     }
     return { x: window.innerWidth / 2 + window.scrollX, y: window.innerHeight / 2 + window.scrollY };
@@ -129,7 +122,6 @@ function getSelectionCoords() {
 
 function showToolbarMenu(x, y) {
     closePopup();
-
     popupUI = document.createElement('div');
     popupUI.id = 'gemini-extension-ui';
     popupUI.style.cssText = `
@@ -162,30 +154,22 @@ function showToolbarMenu(x, y) {
         window.open('https://www.google.com/search?q=' + encodeURIComponent(currentSelection.text), '_blank');
         closePopup();
     }));
-
     popupUI.appendChild(divider());
-
     popupUI.appendChild(createBtn(ICONS.edit, 'Редактировать', 'Функции текста', () => {
         const rect = popupUI.getBoundingClientRect();
         showAIMenu(rect.left + window.scrollX, rect.top + window.scrollY);
     }));
-
     popupUI.appendChild(divider());
-
     popupUI.appendChild(createBtn(ICONS.copy, '', 'Копировать', (e, btn) => {
         navigator.clipboard.writeText(currentSelection.text);
         btn.innerHTML = `<span style="display: flex; align-items: center; justify-content: center;">${ICONS.check}</span>`;
         setTimeout(() => closePopup(), 1000);
     }));
-
     popupUI.appendChild(divider());
-
     popupUI.appendChild(createBtn(ICONS.translate, '', 'Перевести', () => {
         handleActionClick('translate');
     }));
-
     popupUI.appendChild(divider());
-
     popupUI.appendChild(createBtn(ICONS.closeColored, '', 'Закрыть панель', () => {
         closePopup();
     }));
@@ -196,7 +180,6 @@ function showToolbarMenu(x, y) {
 
 function showAIMenu(x, y) {
     closePopup();
-
     popupUI = document.createElement('div');
     popupUI.id = 'gemini-extension-ui';
     popupUI.style.cssText = `
@@ -246,14 +229,12 @@ function handleActionClick(mode) {
         document.head.appendChild(style);
     }
 
-    // Обратите внимание: передаем currentTargetLang в запрос
     chrome.runtime.sendMessage({ action: "callGemini", text: currentSelection.text, mode: mode, targetLang: currentTargetLang }, (response) => {
         if (chrome.runtime.lastError) {
             popupUI.innerHTML = `<div style="padding: 10px 14px; color: #d32f2f;">Сбой связи.</div>`;
             setTimeout(closePopup, 2000);
             return;
         }
-
         if (response && response.success) {
             showResultsMenu(response.data, mode);
         } else {
@@ -265,7 +246,7 @@ function handleActionClick(mode) {
 
 function showResultsMenu(options, mode) {
     popupUI.innerHTML = '';
-    popupUI.style.overflow = 'visible'; // Важно для выпадающего меню
+    popupUI.style.overflow = 'visible'; 
     
     if (!document.getElementById('gemini-styles')) {
         const style = document.createElement('style');
@@ -278,95 +259,65 @@ function showResultsMenu(options, mode) {
                 transition: all 0.15s; font-family: inherit; font-weight: 500;
             }
             .gemini-btn-action:hover { background: #ebebeb; color: #222; }
-            
             .gemini-translate-btn {
-                background: #F1F3F4;
-                border: none;
-                border-radius: 8px;
-                padding: 8px 14px;
-                font-size: 13px;
-                color: #1f1f1f;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                cursor: pointer;
-                transition: background 0.2s;
-                font-family: inherit;
+                background: #F1F3F4; border: none; border-radius: 8px; padding: 8px 14px; 
+                font-size: 13px; color: #1f1f1f; display: flex; align-items: center; gap: 8px; 
+                cursor: pointer; transition: background 0.2s; font-family: inherit;
             }
             .gemini-translate-btn:hover { background: #E8EAED; }
             .gemini-translate-btn.icon-only { padding: 8px; }
-            
-            /* Скроллбар для списка языков */
             .gemini-scroll::-webkit-scrollbar { width: 6px; }
             .gemini-scroll::-webkit-scrollbar-track { background: transparent; }
             .gemini-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-            .gemini-scroll::-webkit-scrollbar-thumb:hover { background: #bbb; }
         `;
         document.head.appendChild(style);
     }
 
     if (mode === "translate") {
-        // === КЛАССИЧЕСКОЕ ОКНО С ВЫБОРОМ ЯЗЫКА ===
         popupUI.style.width = '320px'; 
         popupUI.style.display = 'block';
         
         const header = document.createElement('div');
         header.style.cssText = 'padding: 12px 16px; font-size: 14px; font-weight: 500; color: #1f1f1f; border-bottom: 1px solid #f0f0f0; background: #ffffff; display: flex; justify-content: space-between; align-items: center; position: relative;';
         
-        // 1. Кнопка выбора языка
         const langWrap = document.createElement('div');
         langWrap.style.cssText = 'display: flex; align-items: center; gap: 4px; cursor: pointer; position: relative; user-select: none; padding: 4px 8px; margin-left: -8px; border-radius: 6px; transition: background 0.15s;';
         langWrap.innerHTML = `<span id="gemini-lang-label">${currentTargetLang}</span> <span style="margin-top:2px;">${ICONS.chevronDown}</span>`;
         langWrap.onmouseover = () => langWrap.style.background = '#f0f2f5';
         langWrap.onmouseout = () => langWrap.style.background = 'transparent';
         
-        // 2. Выпадающий список языков
         const langDropdown = document.createElement('div');
         langDropdown.className = 'gemini-scroll';
         langDropdown.style.cssText = 'display: none; position: absolute; top: 100%; left: -4px; margin-top: 8px; background: #fff; border: 1px solid #eaeaea; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); flex-direction: column; min-width: 140px; z-index: 9999; padding: 6px 0; max-height: 220px; overflow-y: auto; cursor: default;';
         
-        // ТОП-10 Популярных языков
         const popularLangs = ['Английский', 'Русский', 'Немецкий', 'Французский', 'Испанский', 'Итальянский', 'Польский', 'Китайский', 'Турецкий', 'Японский'];
         
         popularLangs.forEach(lang => {
             const langItem = document.createElement('div');
             langItem.textContent = lang;
-            langItem.style.cssText = `padding: 8px 16px; font-size: 13px; cursor: pointer; transition: background 0.1s; ${lang === currentTargetLang ? 'background: #f0f4f9; font-weight: 500; color: #1a73e8;' : 'color: #333; font-weight: normal;'}`;
-            
+            langItem.style.cssText = `padding: 8px 16px; font-size: 13px; cursor: pointer; transition: background 0.1s; ${lang === currentTargetLang ? 'background: #f0f4f9; font-weight: 500; color: #1a73e8;' : 'color: #333;'}`;
             langItem.onmouseover = () => { if(lang !== currentTargetLang) langItem.style.background = '#f5f5f5'; };
             langItem.onmouseout = () => { if(lang !== currentTargetLang) langItem.style.background = 'transparent'; };
-            
             langItem.onclick = (e) => {
                 e.stopPropagation();
                 langDropdown.style.display = 'none';
                 if (lang !== currentTargetLang) {
                     currentTargetLang = lang;
                     document.getElementById('gemini-lang-label').textContent = lang;
-                    triggerInlineTranslation(); // Запускаем перевод без закрытия окна
+                    triggerInlineTranslation();
                 }
             };
             langDropdown.appendChild(langItem);
         });
 
         langWrap.appendChild(langDropdown);
-        
-        // Открытие/закрытие списка
         langWrap.onclick = (e) => {
             e.stopPropagation();
             langDropdown.style.display = langDropdown.style.display === 'flex' ? 'none' : 'flex';
         };
-
-        document.addEventListener('click', (e) => {
-            if (!langWrap.contains(e.target)) langDropdown.style.display = 'none';
-        });
         
-        // 3. Иконки справа в шапке
         const rightIcons = document.createElement('div');
         rightIcons.style.cssText = 'display: flex; align-items: center; gap: 12px; color: #444;';
-        
-        const toggleIcon = document.createElement('div');
-        toggleIcon.innerHTML = ICONS.layoutSplit;
-        toggleIcon.style.cssText = 'cursor: pointer; display: flex; align-items: center;';
         
         const closeBtn = document.createElement('div');
         closeBtn.innerHTML = ICONS.closeStandard;
@@ -375,19 +326,15 @@ function showResultsMenu(options, mode) {
         closeBtn.onmouseout = () => closeBtn.style.background = 'transparent';
         closeBtn.onclick = closePopup;
         
-        rightIcons.appendChild(toggleIcon);
         rightIcons.appendChild(closeBtn);
-        
         header.appendChild(langWrap);
         header.appendChild(rightIcons);
         popupUI.appendChild(header);
 
-        // 4. Контейнер для текста
         const contentPane = document.createElement('div');
         contentPane.style.cssText = 'padding: 16px; display: flex; flex-direction: column; gap: 16px; background: #ffffff; min-height: 80px;';
         popupUI.appendChild(contentPane);
 
-        // Функция отрисовки контента (чтобы менять его при смене языка)
         function renderTranslationContent(opts) {
             contentPane.innerHTML = '';
             const opt = opts[0]; 
@@ -395,7 +342,7 @@ function showResultsMenu(options, mode) {
             
             const textContainer = document.createElement('div');
             textContainer.innerHTML = opt.html || textToInsert;
-            textContainer.style.cssText = 'word-wrap: break-word; white-space: pre-wrap; font-size: 14px; color: #1f1f1f; line-height: 1.5; font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;';
+            textContainer.style.cssText = 'word-wrap: break-word; white-space: pre-wrap; font-size: 14px; color: #1f1f1f; line-height: 1.5; font-family: system-ui, sans-serif;';
             contentPane.appendChild(textContainer);
             
             const actionsContainer = document.createElement('div');
@@ -416,7 +363,7 @@ function showResultsMenu(options, mode) {
             copyBtn.onclick = (e) => {
                 e.preventDefault();
                 navigator.clipboard.writeText(textToInsert);
-                copyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                copyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
                 setTimeout(() => copyBtn.innerHTML = ICONS.copyStandard, 1500);
             };
             
@@ -425,59 +372,28 @@ function showResultsMenu(options, mode) {
             contentPane.appendChild(actionsContainer);
         }
 
-        renderTranslationContent(options); // Первичная отрисовка
+        renderTranslationContent(options);
 
-        // Функция плавной подгрузки нового языка
         function triggerInlineTranslation() {
-            // Обновляем выделение в выпадающем списке
-            Array.from(langDropdown.children).forEach(child => {
-                if (child.textContent === currentTargetLang) {
-                    child.style.background = '#f0f4f9';
-                    child.style.fontWeight = '500';
-                    child.style.color = '#1a73e8';
-                } else {
-                    child.style.background = 'transparent';
-                    child.style.fontWeight = 'normal';
-                    child.style.color = '#333';
-                }
-            });
-
-            // Показываем лоадер внутри окна
-            contentPane.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; padding: 24px 0; color: #666; gap: 10px;"><div class="gemini-loader"></div><span style="font-size: 14px;">Перевожу на ${currentTargetLang.toLowerCase()}...</span></div>`;
-            
-            // Отправляем новый запрос
+            contentPane.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; padding: 24px 0; color: #666; gap: 10px;"><div class="gemini-loader"></div><span>Перевожу...</span></div>`;
             chrome.runtime.sendMessage({ action: "callGemini", text: currentSelection.text, mode: "translate", targetLang: currentTargetLang }, (response) => {
-                if (chrome.runtime.lastError) {
-                    contentPane.innerHTML = `<div style="color: #d32f2f; padding: 12px 0;">Сбой связи. Обновите страницу.</div>`;
-                    return;
-                }
-                if (response && response.success) {
-                    renderTranslationContent(response.data);
-                } else {
-                    contentPane.innerHTML = `<div style="color: #d32f2f; padding: 12px 0;">Ошибка: ${response ? response.error : 'Неизвестная ошибка'}</div>`;
-                }
+                if (response && response.success) renderTranslationContent(response.data);
             });
         }
 
     } else {
-        // === СТАНДАРТНАЯ ВЕРТИКАЛЬНАЯ КАРТОЧКА ===
         popupUI.style.width = '320px'; 
         popupUI.style.display = 'block';
         
         const header = document.createElement('div');
-        if (mode === "emoji") header.innerHTML = `<span style="display:flex; align-items:center; gap:6px;">${ICONS.emoji} Варианты с эмодзи</span>`;
-        else header.innerHTML = `Выберите вариант`;
-        
+        header.innerHTML = mode === "emoji" ? `<span style="display:flex; align-items:center; gap:6px;">${ICONS.emoji} Варианты с эмодзи</span>` : `Выберите вариант`;
         header.style.cssText = 'padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333; border-bottom: 1px solid #eaeaea; background: #fafafa; display: flex; justify-content: space-between; align-items: center;';
         
         const closeBtn = document.createElement('div');
         closeBtn.innerHTML = ICONS.closeStandard;
-        closeBtn.style.cssText = 'cursor: pointer; color: #777; display: flex; align-items: center; padding: 4px; border-radius: 4px; transition: background 0.15s;';
-        closeBtn.onmouseover = () => closeBtn.style.background = '#e4e4e4';
-        closeBtn.onmouseout = () => closeBtn.style.background = 'transparent';
+        closeBtn.style.cssText = 'cursor: pointer; color: #777; display: flex; align-items: center; padding: 4px; border-radius: 4px;';
         closeBtn.onclick = closePopup;
         header.appendChild(closeBtn);
-        
         popupUI.appendChild(header);
 
         options.forEach((opt, index) => {
@@ -503,7 +419,6 @@ function showResultsMenu(options, mode) {
             const copyBtn = document.createElement('button');
             copyBtn.className = 'gemini-btn-action';
             copyBtn.innerHTML = ICONS.copy;
-            copyBtn.title = "Копировать в буфер";
             copyBtn.onclick = (e) => {
                 e.preventDefault();
                 navigator.clipboard.writeText(opt.clean || opt);
@@ -513,7 +428,6 @@ function showResultsMenu(options, mode) {
 
             actionsContainer.appendChild(replaceBtn);
             actionsContainer.appendChild(copyBtn);
-
             item.appendChild(textContainer);
             item.appendChild(actionsContainer);
             popupUI.appendChild(item);
@@ -563,7 +477,6 @@ function adjustPopupPosition(mouseX, mouseY) {
     if (mouseX + rect.width > window.innerWidth) {
         popupUI.style.left = `${window.innerWidth - rect.width - 20 + window.scrollX}px`;
     }
-    
     if (spaceBelow < rect.height + 40) {
         popupUI.style.top = `${mouseY - rect.height - 15 + window.scrollY}px`;
     }
