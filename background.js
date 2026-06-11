@@ -13,7 +13,6 @@ async function processText(textToFix, mode, targetLang) {
     let systemPrompt = "";
     let temperature = 0.1;
     
-    // В Mistral для работы response_format обязательно слово "JSON" в промпте
     const baseJsonInstruction = 'ОБЯЗАТЕЛЬНО верни валидный JSON-объект строго в таком формате: { "options": [{"clean": "чистый текст", "html": "текст"}] }. Никакого лишнего текста, markdown-блоков или пояснений.';
 
     if (mode === "spellcheck") {
@@ -62,10 +61,10 @@ Do not add any markdown, explanations, or extra text.`;
           },
           signal: controller.signal,
           body: JSON.stringify({
-            model: "mistral-large-latest", // Самая умная модель Mistral
+            model: "mistral-large-latest",
             temperature: temperature,
             max_tokens: 1024,
-            response_format: { type: "json_object" }, // Форсируем JSON
+            response_format: { type: "json_object" }, 
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: textToFix }
@@ -78,7 +77,7 @@ Do not add any markdown, explanations, or extra text.`;
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             const errMsg = errorData.message || response.statusText;
-            throw new Error(`Ошибка Mistral: ${errMsg}`);
+            throw new Error(errMsg.toLowerCase().includes('rate limit') ? 'Rate limit exceeded' : errMsg); 
         }
 
         const data = await response.json();

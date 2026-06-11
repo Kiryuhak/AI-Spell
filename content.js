@@ -14,18 +14,16 @@ const ICONS = {
     rephrase: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#F3E8FD" stroke="#9334E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14" fill="none"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3" fill="none"></path></svg>`,
     style: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#FEF7E0" stroke="#F9AB00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="#FEF7E0"></polygon></svg>`,
     emoji: `<svg width="16" height="16" viewBox="0 0 24 24" fill="#FFF3E0" stroke="#FA7B17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="#FFF3E0"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2" fill="none"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>`,
-    
     chevronDown: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
     layoutSplit: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="15" y1="3" x2="15" y2="21"></line></svg>`,
     closeStandard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
     replaceCurved: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15l-5-5 5-5"></path><path d="M5 10h11a4 4 0 0 1 4 4v4"></path></svg>`,
-    copyStandard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`
+    copyStandard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
+    hourglass: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F9AB00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 2 18 2 18 6 12 14 6 6 6 2"></polygon><polygon points="6 22 18 22 18 18 12 10 6 18 6 22"></polygon></svg>`
 };
 
 document.addEventListener('mousedown', (e) => {
-    if (popupUI && !popupUI.contains(e.target)) {
-        closePopup();
-    }
+    if (popupUI && !popupUI.contains(e.target)) closePopup();
 });
 
 document.addEventListener('mouseup', (e) => {
@@ -217,6 +215,32 @@ function showAIMenu(x, y) {
     adjustPopupPosition(x, y);
 }
 
+function showRateLimitTimer(seconds, retryCallback, container) {
+    let timeLeft = seconds;
+    const render = () => {
+        if (!container || !document.body.contains(container)) return false; 
+        container.innerHTML = `
+            <div style="padding: 16px; font-weight: 500; color: #b06000; display: flex; align-items: center; justify-content: center; gap: 10px; background: #fff8f0; border-radius: 8px; border: 1px solid #ffe8cc; margin: 4px;">
+                <span class="gemini-hourglass">${ICONS.hourglass}</span>
+                <span>Лимит запросов. Автоповтор через <b>${timeLeft}</b> сек...</span>
+            </div>
+        `;
+        return true;
+    };
+    
+    if (!render()) return;
+    
+    const interval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) {
+            clearInterval(interval);
+            if (document.body.contains(container)) retryCallback();
+        } else {
+            if (!render()) clearInterval(interval);
+        }
+    }, 1000);
+}
+
 function handleActionClick(mode) {
     popupUI.style.width = 'max-content';
     popupUI.style.padding = '0';
@@ -225,21 +249,31 @@ function handleActionClick(mode) {
     if (!document.getElementById('gemini-loader-style')) {
         const style = document.createElement('style');
         style.id = 'gemini-loader-style';
-        style.textContent = `@keyframes gemini-spin { to { transform: rotate(360deg); } } .gemini-loader { width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #666; border-radius: 50%; animation: gemini-spin 0.8s linear infinite; }`;
+        style.textContent = `
+            @keyframes gemini-spin { to { transform: rotate(360deg); } } 
+            @keyframes gemini-flip { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(180deg); } }
+            .gemini-loader { width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #666; border-radius: 50%; animation: gemini-spin 0.8s linear infinite; }
+            .gemini-hourglass { animation: gemini-flip 2s ease-in-out infinite; display: flex; align-items: center; justify-content: center; }
+        `;
         document.head.appendChild(style);
     }
 
     chrome.runtime.sendMessage({ action: "callGemini", text: currentSelection.text, mode: mode, targetLang: currentTargetLang }, (response) => {
         if (chrome.runtime.lastError) {
-            popupUI.innerHTML = `<div style="padding: 10px 14px; color: #d32f2f;">Сбой связи.</div>`;
-            setTimeout(closePopup, 2000);
+            popupUI.innerHTML = `<div style="padding: 10px 14px; color: #d32f2f;">Сбой связи. Обновите страницу (F5).</div>`;
+            setTimeout(closePopup, 3000);
             return;
         }
         if (response && response.success) {
             showResultsMenu(response.data, mode);
         } else {
-            popupUI.innerHTML = `<div style="padding: 10px 14px; color: #d32f2f;">Ошибка: ${response ? response.error : 'Неизвестная ошибка'}</div>`;
-            setTimeout(closePopup, 3000);
+            const err = response ? response.error : 'Неизвестная ошибка';
+            if (err.toLowerCase().includes('rate limit') || err.includes('429')) {
+                showRateLimitTimer(5, () => handleActionClick(mode), popupUI);
+            } else {
+                popupUI.innerHTML = `<div style="padding: 10px 14px; color: #d32f2f;">Ошибка: ${err}</div>`;
+                setTimeout(closePopup, 3000);
+            }
         }
     });
 }
@@ -253,17 +287,9 @@ function showResultsMenu(options, mode) {
         style.id = 'gemini-styles';
         style.textContent = `
             #gemini-extension-ui mark { background: #dcfce7; color: #166534; padding: 2px 4px; border-radius: 4px; font-weight: 500; }
-            .gemini-btn-action { 
-                background: #f5f5f5; border: 1px solid #eaeaea; border-radius: 6px; padding: 6px 10px; 
-                font-size: 13px; cursor: pointer; color: #444; display: flex; align-items: center; gap: 6px; 
-                transition: all 0.15s; font-family: inherit; font-weight: 500;
-            }
+            .gemini-btn-action { background: #f5f5f5; border: 1px solid #eaeaea; border-radius: 6px; padding: 6px 10px; font-size: 13px; cursor: pointer; color: #444; display: flex; align-items: center; gap: 6px; transition: all 0.15s; font-family: inherit; font-weight: 500; }
             .gemini-btn-action:hover { background: #ebebeb; color: #222; }
-            .gemini-translate-btn {
-                background: #F1F3F4; border: none; border-radius: 8px; padding: 8px 14px; 
-                font-size: 13px; color: #1f1f1f; display: flex; align-items: center; gap: 8px; 
-                cursor: pointer; transition: background 0.2s; font-family: inherit;
-            }
+            .gemini-translate-btn { background: #F1F3F4; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; color: #1f1f1f; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.2s; font-family: inherit; }
             .gemini-translate-btn:hover { background: #E8EAED; }
             .gemini-translate-btn.icon-only { padding: 8px; }
             .gemini-scroll::-webkit-scrollbar { width: 6px; }
@@ -377,7 +403,16 @@ function showResultsMenu(options, mode) {
         function triggerInlineTranslation() {
             contentPane.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; padding: 24px 0; color: #666; gap: 10px;"><div class="gemini-loader"></div><span>Перевожу...</span></div>`;
             chrome.runtime.sendMessage({ action: "callGemini", text: currentSelection.text, mode: "translate", targetLang: currentTargetLang }, (response) => {
-                if (response && response.success) renderTranslationContent(response.data);
+                if (response && response.success) {
+                    renderTranslationContent(response.data);
+                } else {
+                    const err = response ? response.error : 'Ошибка связи';
+                    if (err.toLowerCase().includes('rate limit') || err.includes('429')) {
+                        showRateLimitTimer(5, triggerInlineTranslation, contentPane);
+                    } else {
+                        contentPane.innerHTML = `<div style="padding: 16px; color: #d32f2f;">Ошибка: ${err}</div>`;
+                    }
+                }
             });
         }
 
