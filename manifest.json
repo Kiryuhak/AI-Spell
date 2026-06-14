@@ -5,7 +5,8 @@
   "description": "Умный помощник для работы с текстом на базе Mistral AI",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
   ],
   "background": {
     "service_worker": "background.js",
@@ -17,6 +18,10 @@
       "js": ["content.js"]
     }
   ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "host_permissions": [
     "https://api.mistral.ai/*"
   ],
@@ -31,6 +36,6 @@
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
     },
-    "default_title": "AI Spell & Emoji"
+    "default_title": "Настройки AI Spell"
   }
 }

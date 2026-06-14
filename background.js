@@ -1,4 +1,11 @@
-import { MISTRAL_API_KEY } from './config.js';
+// --- НОВАЯ ФИЧА: Открытие настроек при первой установке ---
+chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason === "install") {
+        // Открываем страницу options.html автоматически
+        chrome.runtime.openOptionsPage();
+    }
+});
+// -----------------------------------------------------------
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "callGemini") {
@@ -9,7 +16,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+async function getApiKey() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['mistralApiKey'], (result) => {
+            resolve(result.mistralApiKey);
+        });
+    });
+}
+
 async function processText(textToFix, mode, targetLang) {
+    const apiKey = await getApiKey();
+    
+    if (!apiKey) {
+        throw new Error("API ключ не настроен! Нажмите правой кнопкой мыши на иконку расширения -> Настройки.");
+    }
+
     let systemPrompt = "";
     let temperature = 0.1;
     
@@ -57,7 +78,7 @@ Do not add any markdown, explanations, or extra text.`;
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': `Bearer ${MISTRAL_API_KEY}`
+            'Authorization': `Bearer ${apiKey}`
           },
           signal: controller.signal,
           body: JSON.stringify({

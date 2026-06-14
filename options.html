@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Настройки AI Spell & Emoji</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f8f9fa; color: #202124; display: flex; justify-content: center; padding-top: 60px; margin: 0; }
+        .container { background: #ffffff; padding: 32px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); width: 400px; border: 1px solid #e0e0e0; }
+        h2 { margin-top: 0; color: #1a73e8; font-weight: 500; font-size: 22px; margin-bottom: 8px; }
+        p { font-size: 14px; color: #5f6368; margin-bottom: 24px; line-height: 1.5; }
+        label { font-weight: 500; font-size: 14px; display: block; margin-bottom: 8px; color: #3c4043; }
+        input[type="password"], input[type="text"] { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; margin-bottom: 24px; transition: border 0.2s; font-family: monospace; }
+        input[type="password"]:focus, input[type="text"]:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 1px #1a73e8; }
+        .btn-container { display: flex; align-items: center; }
+        button { background: #1a73e8; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s; }
+        button:hover { background: #1557b0; }
+        #status { margin-left: 16px; font-size: 14px; color: #188038; font-weight: 500; opacity: 0; transition: opacity 0.3s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Настройки нейросети</h2>
+        <p>Укажите ваш персональный API ключ от Mistral AI. Он будет надежно сохранен в локальном хранилище вашего браузера.</p>
+        
+        <label for="apiKey">Ваш Mistral API Key:</label>
+        <input type="password" id="apiKey" placeholder="Вставьте ключ, начинающийся с букв..." />
+        
+        <div class="btn-container">
+            <button id="saveBtn">Сохранить</button>
+            <span id="status">✓ Сохранено успешно!</span>
+        </div>
+    </div>
+    <script src="options.js"></script>
+</body>
+</html>
