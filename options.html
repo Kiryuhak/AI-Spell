@@ -5,12 +5,20 @@
     <title>Настройки AI Spell & Emoji</title>
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; background: #f8f9fa; color: #202124; display: flex; justify-content: center; padding-top: 60px; margin: 0; }
-        .container { background: #ffffff; padding: 32px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); width: 400px; border: 1px solid #e0e0e0; }
+        .container { background: #ffffff; padding: 32px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); width: 420px; border: 1px solid #e0e0e0; }
         h2 { margin-top: 0; color: #1a73e8; font-weight: 500; font-size: 22px; margin-bottom: 8px; }
         p { font-size: 14px; color: #5f6368; margin-bottom: 24px; line-height: 1.5; }
         label { font-weight: 500; font-size: 14px; display: block; margin-bottom: 8px; color: #3c4043; }
-        input[type="password"], input[type="text"] { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; margin-bottom: 24px; transition: border 0.2s; font-family: monospace; }
+        input[type="password"], input[type="text"] { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; margin-bottom: 16px; transition: border 0.2s; font-family: monospace; }
         input[type="password"]:focus, input[type="text"]:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 1px #1a73e8; }
+        
+        /* Стили для блока с инструкцией */
+        .instruction-box { background: #f4f7fe; border: 1px solid #d2e3fc; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+        .instruction-box h4 { margin: 0 0 8px 0; color: #1967d2; font-size: 14px; font-weight: 600; }
+        .instruction-box ol { margin: 0; padding-left: 20px; color: #3c4043; font-size: 13px; line-height: 1.6; }
+        .instruction-box a { color: #1a73e8; text-decoration: none; font-weight: 500; }
+        .instruction-box a:hover { text-decoration: underline; }
+
         .btn-container { display: flex; align-items: center; }
         button { background: #1a73e8; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s; }
         button:hover { background: #1557b0; }
@@ -25,6 +33,16 @@
         <label for="apiKey">Ваш Mistral API Key:</label>
         <input type="password" id="apiKey" placeholder="Вставьте ключ, начинающийся с букв..." />
         
+        <!-- Добавленный блок с инструкцией -->
+        <div class="instruction-box">
+            <h4>Где взять API ключ?</h4>
+            <ol>
+                <li>Перейдите на <a href="https://console.mistral.ai/" target="_blank">console.mistral.ai</a> и зарегистрируйтесь.</li>
+                <li>В меню слева найдите раздел <b>API Keys</b>.</li>
+                <li>Нажмите <b>Create new key</b>, скопируйте его и вставьте в поле выше.</li>
+            </ol>
+        </div>
+
         <div class="btn-container">
             <button id="saveBtn">Сохранить</button>
             <span id="status">✓ Сохранено успешно!</span>
