@@ -29,12 +29,31 @@ function loadHistory() {
             return;
         }
 
-        container.innerHTML = ''; // Очищаем контейнер
+        container.innerHTML = ''; 
 
         history.forEach(item => {
             const card = document.createElement('div');
             card.className = 'history-card';
             
+            let explanationHTML = '';
+            if (item.explanation && item.mode === 'spellcheck') {
+                // УБРАН onclick="..." ИЗ HTML!
+                explanationHTML = `
+                    <div class="explanation-box">
+                        <div class="explanation-header">
+                            <div class="explanation-title-wrap">
+                                <svg class="explanation-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                <span class="explanation-title">Показать разбор ошибок от ИИ</span>
+                            </div>
+                            <svg class="explanation-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="explanation-content">
+                            <div class="explanation-text">${formatExplanation(item.explanation)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
             card.innerHTML = `
                 <div class="card-header">
                     <span class="mode-badge">${getModeName(item.mode)}</span>
@@ -54,19 +73,28 @@ function loadHistory() {
                         </button>
                     </div>
                 </div>
+                ${explanationHTML}
             `;
             container.appendChild(card);
-        });
 
-        // Добавляем обработчики копирования
-        document.querySelectorAll('.copy-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const text = e.target.closest('button').getAttribute('data-text');
-                navigator.clipboard.writeText(text);
-                const originalText = e.target.innerHTML;
-                e.target.innerHTML = 'Скопировано!';
-                setTimeout(() => e.target.innerHTML = originalText, 1500);
-            });
+            // --- БЕЗОПАСНОЕ ДОБАВЛЕНИЕ СЛУШАТЕЛЕЙ КЛИКОВ (БЕЗ ОШИБКИ CSP) ---
+            const spoilerHeader = card.querySelector('.explanation-header');
+            if (spoilerHeader) {
+                spoilerHeader.addEventListener('click', function() {
+                    this.parentElement.classList.toggle('open');
+                });
+            }
+
+            const copyBtn = card.querySelector('.copy-btn');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', function() {
+                    const text = this.getAttribute('data-text');
+                    navigator.clipboard.writeText(text);
+                    const originalHTML = this.innerHTML;
+                    this.innerHTML = 'Скопировано!';
+                    setTimeout(() => this.innerHTML = originalHTML, 1500);
+                });
+            }
         });
     });
 }
@@ -79,9 +107,12 @@ function clearHistory() {
     }
 }
 
-// Защита от XSS-уязвимостей при выводе текста
 function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, 
+    if (str === null || str === undefined) return '';
+    if (typeof str === 'object') {
+        str = str.clean || str.html || JSON.stringify(str);
+    }
+    return String(str).replace(/[&<>'"]/g, 
         tag => ({
             '&': '&amp;',
             '<': '&lt;',
@@ -90,4 +121,28 @@ function escapeHTML(str) {
             '"': '&quot;'
         }[tag])
     );
+}
+
+function formatExplanation(text) {
+    if (!text) return '';
+    try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === 'object') {
+            let html = '';
+            if (parsed['общее_замечание']) {
+                html += `<strong>${escapeHTML(parsed['общее_замечание'])}</strong><br><br>`;
+            }
+            if (Array.isArray(parsed['ошибки'])) {
+                parsed['ошибки'].forEach(err => {
+                    const word = escapeHTML(err['слово'] || '');
+                    const fix = escapeHTML(err['исправление'] || '');
+                    const expl = escapeHTML(err['объяснение'] || '');
+                    html += `<div style="margin-bottom: 8px;">• <del style="color: #D93025;">${word}</del> ➔ <strong style="color: #166534;">${fix}</strong>: ${expl}</div>`;
+                });
+            }
+            if (html) return html;
+        }
+    } catch (e) {}
+
+    return escapeHTML(String(text)).replace(/\n/g, '<br>');
 }

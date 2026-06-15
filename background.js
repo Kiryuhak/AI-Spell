@@ -25,7 +25,7 @@ async function getApiKey() {
     });
 }
 
-async function saveToHistory(originalText, resultText, mode) {
+async function saveToHistory(originalText, resultText, mode, explanation = null) {
     return new Promise((resolve) => {
         chrome.storage.local.get(['aiHistory'], (res) => {
             let history = res.aiHistory || [];
@@ -39,7 +39,8 @@ async function saveToHistory(originalText, resultText, mode) {
                 timestamp: now,
                 original: originalText,
                 result: resultText,
-                mode: mode
+                mode: mode,
+                explanation: explanation
             });
 
             if (history.length > 100) {
@@ -61,18 +62,19 @@ async function processText(textToFix, mode, targetLang) {
     let systemPrompt = "";
     let temperature = 0.1;
     
-    const baseJsonInstruction = 'ОБЯЗАТЕЛЬНО верни валидный JSON-объект строго в таком формате: { "options": [{"clean": "чистый текст", "html": "текст"}] }. Никакого лишнего текста, markdown-блоков или пояснений.';
+    let baseJsonInstruction = 'ОБЯЗАТЕЛЬНО верни валидный JSON-объект строго в таком формате: { "options": [{"clean": "чистый текст", "html": "текст"}] }. Никакого лишнего текста, markdown-блоков или пояснений.';
 
     if (mode === "spellcheck") {
         temperature = 0.0;
-        systemPrompt = `Ты профессиональный русский корректор. Твоя задача — исправить грамматические, орфографические и пунктуационные ошибки в тексте пользователя.
+        // --- УЛЬТРАСТРОГИЙ ПРОМПТ ДЛЯ ИСКЛЮЧЕНИЯ ОШИБОК ВЫДЕЛЕНИЯ ---
+        systemPrompt = `Ты профессиональный русский корректор. Исправь ошибки в тексте пользователя.
 ПРАВИЛА:
-1. В поле "html" оберни исправленные слова в тег <mark>.
-2. КРИТИЧЕСКИ ВАЖНО: Оборачивай в тег <mark> ВСЁ СЛОВО ЦЕЛИКОМ! Категорически запрещено оборачивать отдельные буквы, слоги или части слова.
-❌ КАК НЕЛЬЗЯ ДЕЛАТЬ: Пишу код для пров<mark>ер</mark>ки.
-✅ КАК ПРАВИЛЬНО: Пишу код для <mark>проверки</mark>.
-3. Если слово изначально правильное, вообще не трогай его.
-${baseJsonInstruction}`;
+1. В поле "html" верни исправленный текст, где каждое измененное слово обернуто в тег <mark>.
+2. СТРОЖАЙШИЙ ЗАПРЕТ: Никогда не ставь тег <mark> внутри слова! Оборачивай всё слово целиком от пробела до пробела.
+❌ КАК НЕЛЬЗЯ: Пишу <mark>у</mark> код для пров<mark>ер</mark>ки
+✅ КАК ПРАВИЛЬНО: <mark>Пишу</mark> код для <mark>проверки</mark>
+3. В поле "explanation" напиши ПРОСТОЙ ТЕКСТ (без JSON). Кратко перечисли ошибки списком (используй • и \\n).
+ОБЯЗАТЕЛЬНО верни валидный JSON-объект строго в таком формате: { "options": [{"clean": "чистый текст", "html": "текст"}], "explanation": "текст объяснения" }.`;
     } else if (mode === "emoji") {
         temperature = 0.6;
         systemPrompt = `Добавь подходящие по смыслу эмодзи в текст пользователя. ${baseJsonInstruction}`;
@@ -98,7 +100,6 @@ Do not add any markdown, explanations, or extra text.`;
     }
 
     const controller = new AbortController();
-    // УВЕЛИЧЕНО ВРЕМЯ ОЖИДАНИЯ ДО 60 СЕКУНД (60000 мс)
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
@@ -145,7 +146,12 @@ Do not add any markdown, explanations, or extra text.`;
         }
 
         const finalCleanText = result[0].clean || result[0];
-        await saveToHistory(textToFix, finalCleanText, mode);
+        let explanation = parsedJson.explanation || null;
+        if (typeof explanation === 'object') {
+            explanation = JSON.stringify(explanation);
+        }
+        
+        await saveToHistory(textToFix, finalCleanText, mode, explanation);
 
         return result;
     } catch (error) {
