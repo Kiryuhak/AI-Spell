@@ -13,9 +13,11 @@
         
         p { font-size: 14px; color: #5f6368; margin-bottom: 24px; line-height: 1.5; }
         label { font-weight: 500; font-size: 14px; display: block; margin-bottom: 8px; color: #3c4043; }
-        input[type="password"] { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; margin-bottom: 16px; transition: border 0.2s; font-family: monospace; }
-        input[type="password"]:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 1px #1a73e8; }
+        input[type="password"] { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; margin-bottom: 20px; transition: border 0.2s; font-family: monospace; }
+        input[type="password"]:focus, select:focus { border-color: #1a73e8; outline: none; box-shadow: 0 0 0 1px #1a73e8; }
         
+        select { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; margin-bottom: 24px; background: #ffffff; color: #202124; cursor: pointer; }
+
         .instruction-box { background: #f4f7fe; border: 1px solid #d2e3fc; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
         .instruction-box h4 { margin: 0 0 8px 0; color: #1967d2; font-size: 14px; font-weight: 600; }
         .instruction-box ol { margin: 0; padding-left: 20px; color: #3c4043; font-size: 13px; line-height: 1.6; }
@@ -27,7 +29,6 @@
         button:hover { background: #1557b0; }
         #status { margin-left: 16px; font-size: 14px; color: #188038; font-weight: 500; opacity: 0; transition: opacity 0.3s; }
 
-        /* --- Стили для истории версий (Changelog) --- */
         .changelog { border-top: 1px solid #eaeaea; padding-top: 24px; }
         .changelog h3 { margin: 0 0 16px 0; font-size: 16px; color: #202124; font-weight: 500; }
         
@@ -35,11 +36,7 @@
         .release { position: relative; margin-bottom: 24px; }
         .release:last-child { margin-bottom: 0; }
         
-        .release::before {
-            content: ''; position: absolute; left: -21px; top: 2px;
-            width: 10px; height: 10px; border-radius: 50%;
-            background: #ffffff; border: 2px solid #1a73e8;
-        }
+        .release::before { content: ''; position: absolute; left: -21px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: #ffffff; border: 2px solid #1a73e8; }
         .release.old::before { border-color: #9aa0a6; }
         
         .rel-version { font-weight: 600; font-size: 14px; color: #202124; margin-bottom: 4px; }
@@ -52,13 +49,21 @@
     <div class="container">
         <div class="header-row">
             <h2>Настройки нейросети</h2>
-            <span class="version-badge" id="app-version">v1.3.2</span>
+            <span class="version-badge" id="app-version">v1.4.1</span>
         </div>
-        <p>Укажите ваш персональный API ключ от Mistral AI. Он будет надежно сохранен в локальном хранилище браузера.</p>
+        <p>Укажите параметры доступа к API и тональность по умолчанию.</p>
         
         <label for="apiKey">Ваш Mistral API Key:</label>
         <input type="password" id="apiKey" placeholder="Вставьте ключ, начинающийся с букв..." />
         
+        <label for="toneSelect">Стиль по умолчанию (Tone of Voice):</label>
+        <select id="toneSelect">
+            <option value="business">💼 Деловой (строгий, вежливый, корпоративный)</option>
+            <option value="friendly">👋 Дружелюбный (теплый, открытый, разговорный)</option>
+            <option value="persuasive">🔥 Убедительный (уверенный, сильный, продающий)</option>
+            <option value="creative">✨ Креативный (творческий, живой, с метафорами)</option>
+        </select>
+
         <div class="instruction-box">
             <h4>Где взять API ключ?</h4>
             <ol>
@@ -73,33 +78,31 @@
             <span id="status">✓ Сохранено успешно!</span>
         </div>
 
-        <!-- ИСТОРИЯ ВЕРСИЙ -->
         <div class="changelog">
             <h3>История обновлений</h3>
             <div class="timeline">
                 
-                <!-- Текущая версия (Полировка UI) -->
                 <div class="release">
+                    <div class="rel-version">Версия 1.4.1</div>
+                    <div class="rel-date">Июнь 2026</div>
+                    <ul class="rel-notes">
+                        <li><b>Оптимизация интерфейса:</b> Устаревшая кнопка «Другими словами» удалена для минимализма. Функция «Улучшить стиль» переименована в универсальную кнопку «Переписать текст», которая работает динамически на основе выбранной тональности.</li>
+                    </ul>
+                </div>
+
+                <div class="release old">
+                    <div class="rel-version">Версия 1.4.0</div>
+                    <div class="rel-date">Июнь 2026</div>
+                    <ul class="rel-notes">
+                        <li><b>Новое:</b> Внедрен глобальный выбор тональности текста (Tone of Voice) в настройки: деловой, дружелюбный, убедительный или креативный.</li>
+                    </ul>
+                </div>
+
+                <div class="release old">
                     <div class="rel-version">Версия 1.3.2</div>
                     <div class="rel-date">Июнь 2026</div>
                     <ul class="rel-notes">
-                        <li><b>Улучшено:</b> Иконка в всплывающем меню (popup) теперь полностью совпадает с главной иконкой расширения для единого стиля.</li>
-                    </ul>
-                </div>
-
-                <div class="release old">
-                    <div class="rel-version">Версия 1.3.1</div>
-                    <div class="rel-date">Июнь 2026</div>
-                    <ul class="rel-notes">
-                        <li><b>Улучшено:</b> Идеальное выравнивание иконок и отступов в главном меню (popup).</li>
-                    </ul>
-                </div>
-
-                <div class="release old">
-                    <div class="rel-version">Версия 1.3.0</div>
-                    <div class="rel-date">Июнь 2026</div>
-                    <ul class="rel-notes">
-                        <li><b>Новое:</b> Добавлено главное выпадающее меню расширения (popup) с быстрым доступом к Истории и Настройкам.</li>
+                        <li><b>Улучшено:</b> Главное выпадающее popup-меню полностью отполировано и приведено к единому стилю бренда.</li>
                     </ul>
                 </div>
 

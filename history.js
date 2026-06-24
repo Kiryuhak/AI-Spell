@@ -5,7 +5,7 @@ function getModeName(mode) {
     const modes = {
         'spellcheck': 'Исправление ошибок',
         'rephrase': 'Другими словами',
-        'style': 'Улучшение стиля',
+        'style': 'Переписывание текста',
         'emoji': 'Эмодзи',
         'translate': 'Перевод'
     };
@@ -36,8 +36,7 @@ function loadHistory() {
             card.className = 'history-card';
             
             let explanationHTML = '';
-            if (item.explanation && item.mode === 'spellcheck') {
-                // УБРАН onclick="..." ИЗ HTML!
+            if (item.explanation && (item.mode === 'spellcheck' || item.mode === 'style')) {
                 explanationHTML = `
                     <div class="explanation-box">
                         <div class="explanation-header">
@@ -77,7 +76,6 @@ function loadHistory() {
             `;
             container.appendChild(card);
 
-            // --- БЕЗОПАСНОЕ ДОБАВЛЕНИЕ СЛУШАТЕЛЕЙ КЛИКОВ (БЕЗ ОШИБКИ CSP) ---
             const spoilerHeader = card.querySelector('.explanation-header');
             if (spoilerHeader) {
                 spoilerHeader.addEventListener('click', function() {

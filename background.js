@@ -17,10 +17,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-async function getApiKey() {
+async function getApiKeyAndTone() {
     return new Promise((resolve) => {
-        chrome.storage.local.get(['mistralApiKey'], (result) => {
-            resolve(result.mistralApiKey);
+        chrome.storage.local.get(['mistralApiKey', 'selectedTone'], (result) => {
+            resolve({
+                apiKey: result.mistralApiKey,
+                tone: result.selectedTone || 'business'
+            });
         });
     });
 }
@@ -53,10 +56,10 @@ async function saveToHistory(originalText, resultText, mode, explanation = null)
 }
 
 async function processText(textToFix, mode, targetLang) {
-    const apiKey = await getApiKey();
+    const config = await getApiKeyAndTone();
     
-    if (!apiKey) {
-        throw new Error("API ключ не настроен! Нажмите правой кнопкой мыши на иконку расширения -> Настройки.");
+    if (!config.apiKey) {
+        throw new Error("API ключ не настроен! Откройте Настройки расширения.");
     }
 
     let systemPrompt = "";
@@ -66,7 +69,6 @@ async function processText(textToFix, mode, targetLang) {
 
     if (mode === "spellcheck") {
         temperature = 0.0;
-        // --- УЛЬТРАСТРОГИЙ ПРОМПТ ДЛЯ ИСКЛЮЧЕНИЯ ОШИБОК ВЫДЕЛЕНИЯ ---
         systemPrompt = `Ты профессиональный русский корректор. Исправь ошибки в тексте пользователя.
 ПРАВИЛА:
 1. В поле "html" верни исправленный текст, где каждое измененное слово обернуто в тег <mark>.
@@ -78,18 +80,24 @@ async function processText(textToFix, mode, targetLang) {
     } else if (mode === "emoji") {
         temperature = 0.6;
         systemPrompt = `Добавь подходящие по смыслу эмодзи в текст пользователя. ${baseJsonInstruction}`;
-    } else if (mode === "rephrase") {
-        temperature = 0.5;
-        systemPrompt = `Ты профессиональный русский писатель и редактор. Твоя задача — перефразировать текст пользователя, сохранив смысл, но сделав его более красивым и читаемым.
-ПРАВИЛА:
-1. Сделай 2 абсолютно разных варианта (добавь их в массив options).
-Вариант 1: Более живой, современный и разговорный.
-Вариант 2: Лаконичный и емкий.
-2. КРИТИЧЕСКИ ВАЖНО: Текст должен быть грамматически безупречным на русском языке. Следи за падежами и окончаниями.
-${baseJsonInstruction}`;
     } else if (mode === "style") {
-        temperature = 0.3;
-        systemPrompt = `Ты строгий корпоративный редактор. Улучши стиль текста пользователя, сделай его максимально профессиональным, деловым и вежливым. Сделай 2 разных варианта (добавь их в массив options).
+        temperature = 0.4;
+        let toneInstruction = "";
+        
+        if (config.tone === "friendly") {
+            toneInstruction = "Ты теплый, дружелюбный и открытый собеседник. Твоя задача — переписать текст пользователя, сделав его живым, приветливым, неформальным и легким для чтения, сохранив при этом исходный смысл. Избегай сухости.";
+        } else if (config.tone === "persuasive") {
+            toneInstruction = "Ты профессиональный копирайтер и мастер убеждения. Твоя задача — переписать текст пользователя, сделав его уверенным, сильным, аргументированным и продающим. Текст должен звучать максимально убедительно.";
+        } else if (config.tone === "creative") {
+            toneInstruction = "Ты талантливый творческий писатель. Твоя задача — переписать текст пользователя, добавив в него капельку магии: используй интересные метафоры, живые речевые обороты и красивый слог, сделав его увлекательным.";
+        } else {
+            toneInstruction = "Ты строгий корпоративный редактор. Улучши стиль текста пользователя, сделай его максимально профессиональным, деловым, лаконичным и вежливым. Идеально для рабочей переписки.";
+        }
+
+        systemPrompt = `${toneInstruction}
+ПРАВИЛА:
+1. Сделай 2 разных классных варианта текста, соответствующих заданному стилю (добавь их в массив options).
+2. КРИТИЧЕСКИ ВАЖНО: Текст должен быть безупречным с точки зрения грамматики русского языка.
 ${baseJsonInstruction}`;
     } else if (mode === "translate") {
         temperature = 0.1;
@@ -108,7 +116,7 @@ Do not add any markdown, explanations, or extra text.`;
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
+            'Authorization': `Bearer ${config.apiKey}`
           },
           signal: controller.signal,
           body: JSON.stringify({
@@ -146,11 +154,7 @@ Do not add any markdown, explanations, or extra text.`;
         }
 
         const finalCleanText = result[0].clean || result[0];
-        let explanation = parsedJson.explanation || null;
-        if (typeof explanation === 'object') {
-            explanation = JSON.stringify(explanation);
-        }
-        
+        const explanation = parsedJson.explanation || null;
         await saveToHistory(textToFix, finalCleanText, mode, explanation);
 
         return result;
