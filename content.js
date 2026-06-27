@@ -16,12 +16,12 @@ chrome.storage.onChanged.addListener((changes, area) => {
 let lastAnchorX = 0;
 let lastAnchorY = 0;
 
-// Иконки адаптированы под currentColor, чтобы менять цвет в темной теме
 const ICONS = {
     google: `<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></svg>`,
     edit: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>`,
     copy: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00897B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
-    translate: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,    check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34A853" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="8 12 11 15 16 9"></polyline></svg>`,
+    translate: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,
+    check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34A853" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="8 12 11 15 16 9"></polyline></svg>`,
     replace: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D93025" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>`,
     closeColored: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
     spell: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D93025" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
@@ -40,7 +40,6 @@ function injectStyles() {
     if (!document.getElementById('gemini-styles')) {
         const style = document.createElement('style');
         style.id = 'gemini-styles';
-        // ВАЖНО: CSS-переменные для светлой и темной темы
         style.textContent = `
             #gemini-extension-ui {
                 --bg-primary: #ffffff;
@@ -50,6 +49,7 @@ function injectStyles() {
                 --border-color: #e0e0e0;
                 --hover-bg: #f0f2f5;
                 --shadow-color: rgba(0,0,0,0.1);
+                transition: opacity 0.1s ease; /* Добавили анимацию затухания */
             }
             #gemini-extension-ui[data-theme="dark"] {
                 --bg-primary: #202124;
@@ -81,7 +81,6 @@ function injectStyles() {
     }
 }
 
-// Применяет data-theme к popup
 function applyThemeToPopup(popup) {
     let isDark = currentTheme === 'dark' || (currentTheme === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
     if (isDark) {
@@ -89,6 +88,23 @@ function applyThemeToPopup(popup) {
     } else {
         popup.removeAttribute('data-theme');
     }
+}
+
+function getPopupContainer() {
+    let container = document.body;
+    const activeEl = document.activeElement;
+    
+    if (activeEl && activeEl.closest('dialog')) {
+        container = activeEl.closest('dialog');
+    } else {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0) {
+            let node = sel.anchorNode;
+            if (node && node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+            if (node && node.closest('dialog')) container = node.closest('dialog');
+        }
+    }
+    return container;
 }
 
 document.addEventListener('mousedown', (e) => {
@@ -103,7 +119,7 @@ document.addEventListener('mousedown', (e) => {
             }
         }
     }
-});
+}, true);
 
 document.addEventListener('mouseup', (e) => {
     if (e.target.closest('#gemini-extension-ui')) return;
@@ -115,7 +131,7 @@ document.addEventListener('mouseup', (e) => {
             showToolbarMenu(coords.x, coords.y);
         }
     }, 10);
-});
+}, true);
 
 document.addEventListener('keydown', (e) => {
     if (e.target.closest('#gemini-extension-ui')) return;
@@ -149,7 +165,7 @@ document.addEventListener('keydown', (e) => {
             }
         }
     }
-});
+}, true);
 
 function getSelectedText() {
     const activeEl = document.activeElement;
@@ -187,11 +203,9 @@ function getSelectionCoords() {
         }
     }
     if (rect) {
-        let x = rect.left + window.scrollX;
-        let y = rect.bottom + window.scrollY;
-        return { x: x, y: y };
+        return { x: rect.left, y: rect.bottom };
     }
-    return { x: window.innerWidth / 2 + window.scrollX, y: window.innerHeight / 2 + window.scrollY };
+    return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 }
 
 function showToolbarMenu(x, y) {
@@ -204,23 +218,29 @@ function showToolbarMenu(x, y) {
     popupUI.id = 'gemini-extension-ui';
     applyThemeToPopup(popupUI);
     
+    popupUI.addEventListener('mousedown', e => e.stopPropagation());
+    popupUI.addEventListener('mouseup', e => e.stopPropagation());
+    popupUI.addEventListener('click', e => e.stopPropagation());
+    
     popupUI.style.cssText = `
-        position: absolute; left: -9999px; top: -9999px;
+        position: fixed !important; left: -9999px; top: -9999px;
         background: var(--bg-primary); border: 1px solid var(--border-color);
         box-shadow: 0 4px 12px var(--shadow-color);
-        border-radius: 8px; z-index: 2147483647;
+        border-radius: 8px; z-index: 2147483647 !important;
         font-family: system-ui, -apple-system, sans-serif; font-size: 13px;
         color: var(--text-primary); display: flex; align-items: center; padding: 4px; gap: 2px;
     `;
 
     const createBtn = (icon, text, title, onClick) => {
-        const btn = document.createElement('div');
+        const btn = document.createElement('button');
+        btn.type = 'button'; 
         btn.innerHTML = `<span style="display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">${icon}</span>${text ? `<span style="margin-left: 6px; font-weight: 500;">${text}</span>` : ''}`;
         btn.title = title;
-        btn.style.cssText = `padding: 6px 8px; cursor: pointer; border-radius: 6px; display: flex; align-items: center; transition: background 0.15s; color: var(--text-primary);`;
+        btn.style.cssText = `padding: 6px 8px; cursor: pointer; border-radius: 6px; display: flex; align-items: center; transition: background 0.15s; color: var(--text-primary); background: transparent; border: none;`;
+        btn.onmousedown = (e) => e.preventDefault(); 
         btn.onmouseover = () => btn.style.backgroundColor = 'var(--hover-bg)';
         btn.onmouseout = () => btn.style.backgroundColor = 'transparent';
-        btn.onclick = (e) => { e.stopPropagation(); onClick(e, btn); };
+        btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onClick(e, btn); };
         return btn;
     };
 
@@ -269,6 +289,7 @@ function showToolbarMenu(x, y) {
         const item = document.createElement('div');
         item.innerHTML = `<span style="display:flex; align-items: center; justify-content: center; margin-right: 10px; color: var(--text-secondary);">${icon}</span> <span style="font-weight: 400;">${text}</span>`;
         item.style.cssText = `padding: 8px 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; color: var(--text-primary); transition: background 0.15s;`;
+        item.onmousedown = (e) => e.preventDefault();
         item.onmouseover = () => item.style.backgroundColor = 'var(--hover-bg)';
         item.onmouseout = () => item.style.backgroundColor = 'transparent';
         item.onclick = (e) => {
@@ -293,7 +314,7 @@ function showToolbarMenu(x, y) {
         closePopup();
     }));
 
-    document.body.appendChild(popupUI);
+    getPopupContainer().appendChild(popupUI);
     adjustPopupPosition();
 }
 
@@ -307,18 +328,23 @@ function showAIMenu(x, y) {
     popupUI.id = 'gemini-extension-ui';
     applyThemeToPopup(popupUI);
 
+    popupUI.addEventListener('mousedown', e => e.stopPropagation());
+    popupUI.addEventListener('mouseup', e => e.stopPropagation());
+    popupUI.addEventListener('click', e => e.stopPropagation());
+
     popupUI.style.cssText = `
-        position: absolute; left: -9999px; top: -9999px;
+        position: fixed !important; left: -9999px; top: -9999px;
         background: var(--bg-primary); border: 1px solid var(--border-color);
         box-shadow: 0 6px 16px var(--shadow-color);
-        border-radius: 8px; z-index: 2147483647;
+        border-radius: 8px; z-index: 2147483647 !important;
         font-family: system-ui, -apple-system, sans-serif; font-size: 13px;
         color: var(--text-primary); width: max-content; min-width: 200px; 
         padding: 4px;
     `;
 
     const createMenuBtn = (icon, text, mode, shortcut) => {
-        const btn = document.createElement('div');
+        const btn = document.createElement('button');
+        btn.type = 'button'; 
         btn.innerHTML = `
             <div style="display: flex; align-items: center;">
                 <span style="margin-right: 10px; display: flex;">${icon}</span>
@@ -326,10 +352,11 @@ function showAIMenu(x, y) {
             </div>
             ${shortcut ? `<span style="color: var(--text-secondary); font-size: 11px; margin-left: 24px; letter-spacing: 0.5px;">${shortcut}</span>` : ''}
         `;
-        btn.style.cssText = `padding: 8px 12px; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: space-between; border-radius: 6px; color: var(--text-primary);`;
+        btn.style.cssText = `width: 100%; padding: 8px 12px; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: space-between; border-radius: 6px; color: var(--text-primary); background: transparent; border: none;`;
+        btn.onmousedown = (e) => e.preventDefault();
         btn.onmouseover = () => btn.style.backgroundColor = 'var(--hover-bg)';
         btn.onmouseout = () => btn.style.backgroundColor = 'transparent';
-        btn.onclick = () => handleActionClick(mode);
+        btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); handleActionClick(mode); };
         return btn;
     };
 
@@ -337,7 +364,7 @@ function showAIMenu(x, y) {
     popupUI.appendChild(createMenuBtn(ICONS.style, 'Переписать текст', 'style', 'Alt+Y'));
     popupUI.appendChild(createMenuBtn(ICONS.emoji, 'Подобрать эмодзи', 'emoji', 'Alt+T'));
 
-    document.body.appendChild(popupUI);
+    getPopupContainer().appendChild(popupUI);
     adjustPopupPosition();
 }
 
@@ -383,6 +410,13 @@ function executeRequest(mode) {
     popupUI.style.padding = '0';
     popupUI.innerHTML = `<div style="padding: 10px 14px; font-weight: 500; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;"><div class="gemini-loader"></div>Обработка...</div>`;
     adjustPopupPosition(); 
+
+    if (!chrome.runtime || !chrome.runtime.sendMessage) {
+        popupUI.innerHTML = `<div style="padding: 10px 14px; color: #d32f2f;">Расширение обновлено. Пожалуйста, обновите страницу (F5).</div>`;
+        adjustPopupPosition();
+        setTimeout(closePopup, 3000);
+        return;
+    }
 
     chrome.runtime.sendMessage({ 
         action: "callGemini", 
@@ -437,6 +471,8 @@ function showResultsMenu(options, mode) {
             const langItem = document.createElement('div');
             langItem.textContent = lang;
             langItem.style.cssText = `padding: 8px 16px; font-size: 13px; cursor: pointer; transition: background 0.1s; color: var(--text-primary);`;
+            langItem.onmousedown = (e) => e.preventDefault();
+
             if (lang === currentTargetLang) {
                 langItem.style.background = 'var(--hover-bg)';
                 langItem.style.fontWeight = '500';
@@ -467,6 +503,7 @@ function showResultsMenu(options, mode) {
         const closeBtn = document.createElement('div');
         closeBtn.innerHTML = ICONS.closeStandard;
         closeBtn.style.cssText = 'cursor: pointer; display: flex; align-items: center; margin-right: -4px; padding: 4px; border-radius: 4px;';
+        closeBtn.onmousedown = (e) => e.preventDefault();
         closeBtn.onmouseover = () => closeBtn.style.background = 'var(--hover-bg)';
         closeBtn.onmouseout = () => closeBtn.style.background = 'transparent';
         closeBtn.onclick = closePopup;
@@ -495,19 +532,23 @@ function showResultsMenu(options, mode) {
             actionsContainer.style.cssText = 'display: flex; gap: 8px; margin-top: 4px;';
             
             const replaceBtn = document.createElement('button');
+            replaceBtn.type = 'button'; 
             replaceBtn.className = 'gemini-translate-btn';
             replaceBtn.innerHTML = `${ICONS.replaceCurved} Заменить текст`;
+            replaceBtn.onmousedown = (e) => e.preventDefault();
             replaceBtn.onclick = (e) => {
-                e.preventDefault();
+                e.preventDefault(); e.stopPropagation();
                 insertTextToDOM(textToInsert);
                 closePopup();
             };
             
             const copyBtn = document.createElement('button');
+            copyBtn.type = 'button'; 
             copyBtn.className = 'gemini-translate-btn icon-only';
             copyBtn.innerHTML = ICONS.copyStandard;
+            copyBtn.onmousedown = (e) => e.preventDefault();
             copyBtn.onclick = (e) => {
-                e.preventDefault();
+                e.preventDefault(); e.stopPropagation();
                 navigator.clipboard.writeText(textToInsert);
                 copyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
                 setTimeout(() => copyBtn.innerHTML = ICONS.copyStandard, 1500);
@@ -524,6 +565,13 @@ function showResultsMenu(options, mode) {
         function triggerInlineTranslation() {
             contentPane.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; padding: 24px 0; color: var(--text-secondary); gap: 10px;"><div class="gemini-loader"></div><span>Перевожу...</span></div>`;
             adjustPopupPosition(); 
+
+            if (!chrome.runtime || !chrome.runtime.sendMessage) {
+                contentPane.innerHTML = `<div style="padding: 16px; color: #d32f2f;">Расширение обновлено. Пожалуйста, обновите страницу (F5).</div>`;
+                adjustPopupPosition();
+                return;
+            }
+
             chrome.runtime.sendMessage({ action: "callGemini", text: currentSelection.text, mode: "translate", targetLang: currentTargetLang }, (response) => {
                 if (response && response.success) {
                     renderTranslationContent(response.data);
@@ -553,6 +601,7 @@ function showResultsMenu(options, mode) {
         const closeBtn = document.createElement('div');
         closeBtn.innerHTML = ICONS.closeStandard;
         closeBtn.style.cssText = 'cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; padding: 4px; border-radius: 4px;';
+        closeBtn.onmousedown = (e) => e.preventDefault();
         closeBtn.onclick = closePopup;
         header.appendChild(closeBtn);
         popupUI.appendChild(header);
@@ -573,19 +622,23 @@ function showResultsMenu(options, mode) {
             actionsContainer.style.cssText = `display: flex; gap: 8px;`;
 
             const replaceBtn = document.createElement('button');
+            replaceBtn.type = 'button'; 
             replaceBtn.className = 'gemini-btn-action';
             replaceBtn.innerHTML = `${ICONS.replace} Заменить`;
+            replaceBtn.onmousedown = (e) => e.preventDefault();
             replaceBtn.onclick = (e) => {
-                e.preventDefault();
+                e.preventDefault(); e.stopPropagation();
                 insertTextToDOM(opt.clean || opt);
                 closePopup();
             };
 
             const copyBtn = document.createElement('button');
+            copyBtn.type = 'button'; 
             copyBtn.className = 'gemini-btn-action';
             copyBtn.innerHTML = ICONS.copy;
+            copyBtn.onmousedown = (e) => e.preventDefault();
             copyBtn.onclick = (e) => {
-                e.preventDefault();
+                e.preventDefault(); e.stopPropagation();
                 navigator.clipboard.writeText(opt.clean || opt);
                 copyBtn.innerHTML = ICONS.check;
                 setTimeout(() => copyBtn.innerHTML = ICONS.copy, 1500); 
@@ -610,8 +663,8 @@ function adjustPopupPosition() {
     let absoluteLeft = lastAnchorX;
     let absoluteTop = lastAnchorY + 15;
     
-    let viewportX = absoluteLeft - window.scrollX;
-    let viewportY = absoluteTop - window.scrollY;
+    let viewportX = absoluteLeft;
+    let viewportY = absoluteTop;
 
     if (viewportX + rect.width > window.innerWidth - 20) {
         viewportX = window.innerWidth - rect.width - 20;
@@ -619,15 +672,15 @@ function adjustPopupPosition() {
     if (viewportX < 20) viewportX = 20;
 
     if (viewportY + rect.height > window.innerHeight - 20) {
-        viewportY = (lastAnchorY - window.scrollY) - rect.height - 15;
+        viewportY = lastAnchorY - rect.height - 15;
     }
 
     if (viewportY < 20) {
         viewportY = 20;
     }
 
-    popupUI.style.left = `${viewportX + window.scrollX}px`;
-    popupUI.style.top = `${viewportY + window.scrollY}px`;
+    popupUI.style.left = `${viewportX}px`;
+    popupUI.style.top = `${viewportY}px`;
 }
 
 function insertTextToDOM(newText) {
@@ -635,31 +688,69 @@ function insertTextToDOM(newText) {
     try {
         if (isInput && activeElement) {
             const val = activeElement.value;
-            activeElement.value = val.substring(0, start) + newText + val.substring(end);
+            const newFullText = val.substring(0, start) + newText + val.substring(end);
+            
+            // Хак для React (Эмулируем настоящий ввод пользователя)
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+            const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+            
+            if (activeElement.tagName === 'INPUT' && nativeInputValueSetter) {
+                nativeInputValueSetter.call(activeElement, newFullText);
+            } else if (activeElement.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
+                nativeTextAreaValueSetter.call(activeElement, newFullText);
+            } else {
+                activeElement.value = newFullText;
+            }
+
             activeElement.selectionStart = activeElement.selectionEnd = start + newText.length;
             activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+            activeElement.dispatchEvent(new Event('change', { bubbles: true }));
+            
         } else if (range) {
-            range.deleteContents();
-            const textNode = document.createTextNode(newText);
-            range.insertNode(textNode);
             
             const sel = window.getSelection();
             sel.removeAllRanges();
-            const newRange = document.createRange();
-            newRange.setStartAfter(textNode);
-            newRange.setEndAfter(textNode);
-            sel.addRange(newRange);
+            sel.addRange(range); 
+
+            const success = document.execCommand('insertText', false, newText);
+
+            if (!success) {
+                range.deleteContents();
+                const textNode = document.createTextNode(newText);
+                range.insertNode(textNode);
+                
+                sel.removeAllRanges();
+                const newRange = document.createRange();
+                newRange.setStartAfter(textNode);
+                newRange.setEndAfter(textNode);
+                sel.addRange(newRange);
+            }
             
-            if (activeElement) activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+            if (activeElement) {
+                activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+                activeElement.dispatchEvent(new Event('change', { bubbles: true }));
+            }
         }
     } catch (err) {
         console.error("Ошибка вставки:", err);
     }
 }
 
+// НОВЫЙ МЕХАНИЗМ ЗАКРЫТИЯ ОКНА
 function closePopup() {
     if (popupUI) {
-        popupUI.remove();
-        popupUI = null;
+        const el = popupUI;
+        popupUI = null; // Отвязываем ссылку мгновенно
+        
+        // Делаем окно невидимым и некликабельным
+        el.style.opacity = '0';
+        el.style.pointerEvents = 'none';
+        
+        // Удаляем из HTML только через 100мс, чтобы React понял, что клик был внутри диалога!
+        setTimeout(() => {
+            if (el && el.parentNode) {
+                el.remove();
+            }
+        }, 100);
     }
 }
