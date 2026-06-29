@@ -34,10 +34,11 @@
    git clone [https://github.com/Kiryuhak/AI-Spell.git](https://github.com/Kiryuhak/AI-Spell.git)
 
 2. Перейдите в папку проекта и установите зависимости компилятора:
+ 
    ```bash
    cd AI-Spell
    npm install
-   
+    
 3. Соберите проект (компиляция .ts в .js):
    ```bash
    npm run build
