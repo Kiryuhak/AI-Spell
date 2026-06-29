@@ -11,38 +11,27 @@ let currentSelection: SelectionData = { text: "", range: null, activeElement: nu
 let popupUI: HTMLElement | null = null;
 let currentTargetLang: string = "Английский"; 
 let currentTheme: string = 'auto';
+let currentSearchEngine: string = 'google'; // Храним выбранный поисковик
 
-chrome.storage.local.get(['selectedTheme'], (res) => {
-    if (res.selectedTheme) currentTheme = res.selectedTheme as string; // Добавили as string
+// Получаем настройки при загрузке
+chrome.storage.local.get(['selectedTheme', 'searchEngine'], (res) => {
+    if (res.selectedTheme) currentTheme = res.selectedTheme as string;
+    if (res.searchEngine) currentSearchEngine = res.searchEngine as string;
 });
+
+// Слушаем изменения настроек в реальном времени
 chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.selectedTheme) {
-        currentTheme = changes.selectedTheme.newValue as string; // Добавили as string
+    if (area === 'local') {
+        if (changes.selectedTheme) currentTheme = changes.selectedTheme.newValue as string;
+        if (changes.searchEngine) currentSearchEngine = changes.searchEngine.newValue as string;
     }
 });
 
 let lastAnchorX: number = 0;
 let lastAnchorY: number = 0;
 
-const ICONS: Record<string, string> = {
-    google: `<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></svg>`,
-    edit: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>`,
-    copy: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
-translate: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,    keyboard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9333EA" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" ry="2"></rect><path d="M6 8h.01"></path><path d="M10 8h.01"></path><path d="M14 8h.01"></path><path d="M18 8h.01"></path><path d="M8 12h.01"></path><path d="M12 12h.01"></path><path d="M16 12h.01"></path><path d="M7 16h10"></path></svg>`,
-    check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34A853" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="8 12 11 15 16 9"></polyline></svg>`,
-    replace: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D93025" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>`,
-    closeColored: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-    spell: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D93025" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
-    style: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F9AB00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`,
-    emoji: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FA7B17" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>`,
-    chevronDown: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
-    closeStandard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-    replaceCurved: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15l-5-5 5-5"></path><path d="M5 10h11a4 4 0 0 1 4 4v4"></path></svg>`,
-    copyStandard: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
-    hourglass: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F9AB00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 2 18 2 18 6 12 14 6 6 6 2"></polygon><polygon points="6 22 18 22 18 18 12 10 6 18 6 22"></polygon></svg>`,
-    history: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6750A4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
-    dots: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>`
-};
+// TypeScript знает про переменную ICONS, так как она объявлена в соседнем файле src/icons.ts
+// Главное, чтобы оба файла были прописаны в manifest.json
 
 function injectStyles(): void {
     if (!document.getElementById('gemini-styles')) {
@@ -71,6 +60,17 @@ function injectStyles(): void {
                 --hover-bg: #3f3f46;
                 --shadow-color: rgba(0,0,0,0.5);
             }
+            
+            /* 🛡️ ЖЕЛЕЗОБЕТОННАЯ ЗАЩИТА ОТ СЖАТИЯ ИКОНОК */
+            #gemini-extension-ui span, 
+            #gemini-extension-ui svg {
+                flex-shrink: 0 !important;
+            }
+            #gemini-extension-ui svg {
+                min-width: 14px !important;
+                min-height: 14px !important;
+            }
+            
             @keyframes gemini-spin { to { transform: rotate(360deg); } } 
             @keyframes gemini-flip { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(180deg); } }
             .gemini-loader { width: 14px; height: 14px; border: 2.5px solid var(--text-secondary); border-top-color: transparent; border-radius: 50%; animation: gemini-spin 0.8s linear infinite; }
@@ -247,9 +247,11 @@ function showToolbarMenu(x: number, y: number): void {
     const createBtn = (icon: string, text: string, title: string, onClick: (e: MouseEvent, btn: HTMLButtonElement) => void) => {
         const btn = document.createElement('button');
         btn.type = 'button'; 
-        btn.innerHTML = `<span style="display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">${icon}</span>${text ? `<span style="margin-left: 6px; font-weight: 500;">${text}</span>` : ''}`;
+        // Жестко фиксируем обертку иконки в 16x16
+        btn.innerHTML = `<span style="display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex-shrink: 0; color: var(--text-secondary); overflow: visible;">${icon}</span>${text ? `<span style="margin-left: 6px; font-weight: 500;">${text}</span>` : ''}`;
         btn.title = title;
-        btn.style.cssText = `padding: 6px 8px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; transition: background 0.15s; color: var(--text-primary); background: transparent; border: none;`;
+        // Сбрасываем чужие стили (box-sizing и line-height)
+        btn.style.cssText = `padding: 6px 8px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; transition: background 0.15s; color: var(--text-primary); background: transparent; border: none; box-sizing: border-box; line-height: 1;`;
         btn.onmousedown = (e) => e.preventDefault(); 
         btn.onmouseover = () => btn.style.backgroundColor = 'var(--hover-bg)';
         btn.onmouseout = () => btn.style.backgroundColor = 'transparent';
@@ -263,10 +265,27 @@ function showToolbarMenu(x: number, y: number): void {
         return d;
     };
 
-    popupUI.appendChild(createBtn(ICONS.google, '', 'Искать в Google', () => {
-        window.open('https://www.google.com/search?q=' + encodeURIComponent(currentSelection.text), '_blank');
+    // --- ДИНАМИЧЕСКАЯ КНОПКА ПОИСКА ---
+    let searchIcon = ICONS.google;
+    let searchUrl = 'https://www.google.com/search?q=';
+    let searchTitle = 'Искать в Google';
+
+    if (currentSearchEngine === 'yandex') {
+        searchIcon = ICONS.yandex;
+        searchUrl = 'https://yandex.ru/search/?text=';
+        searchTitle = 'Искать в Яндексе';
+    } else if (currentSearchEngine === 'duckduckgo') {
+        searchIcon = ICONS.duckduckgo;
+        searchUrl = 'https://duckduckgo.com/?q=';
+        searchTitle = 'Искать в DuckDuckGo';
+    }
+
+    popupUI.appendChild(createBtn(searchIcon, '', searchTitle, () => {
+        window.open(searchUrl + encodeURIComponent(currentSelection.text), '_blank');
         closePopup();
     }));
+    // --- КОНЕЦ БЛОКА ПОИСКА ---
+
     popupUI.appendChild(divider());
     popupUI.appendChild(createBtn(ICONS.edit, 'Редактировать', 'Функции текста', () => {
         showAIMenu(lastAnchorX, lastAnchorY);
@@ -298,6 +317,8 @@ function showToolbarMenu(x: number, y: number): void {
                     dropdown.style.marginBottom = '8px';
                 } else {
                     dropdown.style.top = '100%';
+                    dropdown.style.bottom = 'auto';
+                    dropdown.style.marginTop = '8px';
                     dropdown.style.bottom = 'auto';
                     dropdown.style.marginTop = '8px';
                     dropdown.style.marginBottom = '0';
@@ -342,7 +363,9 @@ function showToolbarMenu(x: number, y: number): void {
     popupUI.appendChild(moreWrap);
 
     popupUI.appendChild(divider());
-    popupUI.appendChild(createBtn(ICONS.closeColored, '', 'Закрыть', () => closePopup()));
+    popupUI.appendChild(createBtn(ICONS.closeColored, '', 'Закрыть панель', () => {
+        closePopup();
+    }));
 
     getPopupContainer().appendChild(popupUI);
     adjustPopupPosition();

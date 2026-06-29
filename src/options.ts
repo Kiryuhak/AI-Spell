@@ -3,17 +3,18 @@ function saveOptions(): void {
     // Явно указываем типы элементов, чтобы TS знал об их свойствах (value)
     const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
     const toneSelect = document.getElementById('toneSelect') as HTMLSelectElement;
-    const themeSelect = document.getElementById('themeSelect') as HTMLSelectElement;
-    const statusDiv = document.getElementById('status') as HTMLElement; // Блок для вывода сообщения об успехе
-
+    const themeSelect = document.getElementById('themeSelect') as HTMLSelectElement;    const statusDiv = document.getElementById('status') as HTMLElement; // Блок для вывода сообщения об успехе
+    const searchSelect = document.getElementById('searchEngine') as HTMLSelectElement; // Добавили
     const apiKey = apiKeyInput.value.trim();
     const selectedTone = toneSelect.value;
     const selectedTheme = themeSelect.value;
 
+    // ... ниже внутри chrome.storage.local.set:
     chrome.storage.local.set({
         mistralApiKey: apiKey,
         selectedTone: selectedTone,
-        selectedTheme: selectedTheme
+        selectedTheme: selectedTheme,
+        searchEngine: searchSelect.value // Добавили
     }, () => {
         // Показываем сообщение об успешном сохранении
         if (statusDiv) {
@@ -35,17 +36,19 @@ function restoreOptions(): void {
     const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
     const toneSelect = document.getElementById('toneSelect') as HTMLSelectElement;
     const themeSelect = document.getElementById('themeSelect') as HTMLSelectElement;
-
+    const searchSelect = document.getElementById('searchEngine') as HTMLSelectElement; // Добавили
+    
     // Задаем значения по умолчанию, если в памяти еще ничего нет
     chrome.storage.local.get({
         mistralApiKey: '',
         selectedTone: 'business',
-        selectedTheme: 'auto'
+        selectedTheme: 'auto',
+        searchEngine: 'google' // Значение по умолчанию
     }, (items) => {
-        // Убеждаем TypeScript, что мы кладем туда именно строки (as string)
         apiKeyInput.value = items.mistralApiKey as string;
         toneSelect.value = items.selectedTone as string;
         themeSelect.value = items.selectedTheme as string;
+        searchSelect.value = items.searchEngine as string; // Восстанавливаем выбор
     });
 }
 

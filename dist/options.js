@@ -6,13 +6,16 @@ function saveOptions() {
     const toneSelect = document.getElementById('toneSelect');
     const themeSelect = document.getElementById('themeSelect');
     const statusDiv = document.getElementById('status'); // Блок для вывода сообщения об успехе
+    const searchSelect = document.getElementById('searchEngine'); // Добавили
     const apiKey = apiKeyInput.value.trim();
     const selectedTone = toneSelect.value;
     const selectedTheme = themeSelect.value;
+    // ... ниже внутри chrome.storage.local.set:
     chrome.storage.local.set({
         mistralApiKey: apiKey,
         selectedTone: selectedTone,
-        selectedTheme: selectedTheme
+        selectedTheme: selectedTheme,
+        searchEngine: searchSelect.value // Добавили
     }, () => {
         // Показываем сообщение об успешном сохранении
         if (statusDiv) {
@@ -32,16 +35,18 @@ function restoreOptions() {
     const apiKeyInput = document.getElementById('apiKey');
     const toneSelect = document.getElementById('toneSelect');
     const themeSelect = document.getElementById('themeSelect');
+    const searchSelect = document.getElementById('searchEngine'); // Добавили
     // Задаем значения по умолчанию, если в памяти еще ничего нет
     chrome.storage.local.get({
         mistralApiKey: '',
         selectedTone: 'business',
-        selectedTheme: 'auto'
+        selectedTheme: 'auto',
+        searchEngine: 'google' // Значение по умолчанию
     }, (items) => {
-        // Убеждаем TypeScript, что мы кладем туда именно строки (as string)
         apiKeyInput.value = items.mistralApiKey;
         toneSelect.value = items.selectedTone;
         themeSelect.value = items.selectedTheme;
+        searchSelect.value = items.searchEngine; // Восстанавливаем выбор
     });
 }
 // Назначаем обработчики событий после загрузки HTML-страницы

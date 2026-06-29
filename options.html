@@ -73,7 +73,7 @@
     <div class="container">
         <div class="header-row">
             <h2>Настройки нейросети</h2>
-            <span class="version-badge" id="app-version">v1.5.0</span>
+            <span class="version-badge" id="app-version">v2.0.0</span>
         </div>
         <p>Укажите параметры доступа к API, стиль текста и тему оформления.</p>
         
@@ -95,6 +95,16 @@
             <option value="dark">🌙 Темная</option>
         </select>
 
+        <!-- Новая настройка поиска -->
+        <div style="margin-bottom: 20px;">
+            <label for="searchEngine" style="display: block; font-weight: 500; margin-bottom: 8px; color: #1e293b;">Поисковая система:</label>
+            <select id="searchEngine" style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; background: #fff; color: #1e293b; outline: none; cursor: pointer;">
+                <option value="google">Google</option>
+                <option value="yandex">Яндекс</option>
+                <option value="duckduckgo">DuckDuckGo</option>
+            </select>
+        </div>
+
         <div class="instruction-box">
             <h4>Где взять API ключ?</h4>
             <ol>
@@ -107,26 +117,6 @@
         <div class="btn-container">
             <button id="saveBtn">Сохранить</button>
             <span id="status">✓ Сохранено успешно!</span>
-        </div>
-
-        <div class="changelog">
-            <h3>История обновлений</h3>
-            <div class="timeline">
-                <div class="release">
-                    <div class="rel-version">Версия 1.5.0</div>
-                    <div class="rel-date">Июнь 2026</div>
-                    <ul class="rel-notes">
-                        <li><b>Новое:</b> Полноценная поддержка Темной темы (Dark Mode)! Подстраивается под систему автоматически или выбирается вручную в настройках.</li>
-                    </ul>
-                </div>
-                <div class="release old">
-                    <div class="rel-version">Версия 1.4.1</div>
-                    <div class="rel-date">Июнь 2026</div>
-                    <ul class="rel-notes">
-                        <li><b>Оптимизация:</b> Удалена кнопка «Другими словами», добавлена универсальная кнопка «Переписать текст» с поддержкой тональности (Tone of Voice).</li>
-                    </ul>
-                </div>
-            </div>
         </div>
 
     </div>
