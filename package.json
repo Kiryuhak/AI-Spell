@@ -1,0 +1,26 @@
+{
+  "name": "ai-spell",
+  "version": "1.0.0",
+  "description": "",
+  "main": "background.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kiryuhak/AI-Spell.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Kiryuhak/AI-Spell/issues"
+  },
+  "homepage": "https://github.com/Kiryuhak/AI-Spell#readme",
+  "devDependencies": {
+    "@types/chrome": "^0.2.0",
+    "typescript": "^6.0.3"
+  }
+}

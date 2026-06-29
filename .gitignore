@@ -1,7 +1,11 @@
-# Скрываем файл с реальным API ключом
-config.js
-
-# Стандартные исключения
+# Зависимости Node.js
 node_modules/
-.DS_Store
+
+# Логи npm (если вдруг появятся ошибки сборки)
+npm-debug.log
+*.log
+
+# Файлы настроек редакторов и ОС
 .vscode/
+.DS_Store
+Thumbs.db
