@@ -339,7 +339,7 @@ function showToolbarMenu(x: number, y: number): void {
 
     const createDropdownItem = (icon: string, text: string, onClick: () => void) => {
         const item = document.createElement('div');
-        item.innerHTML = `<span style="display:flex; align-items: center; justify-content: center; margin-right: 12px;">${icon}</span> <span style="font-weight: 500;">${text}</span>`;
+        item.innerHTML = `<span style="display:flex; align-items: center; justify-content: center; margin-right: 12px; width: 16px; height: 16px; flex-shrink: 0;">${icon}</span> <span style="font-weight: 500;">${text}</span>`;
         item.style.cssText = `padding: 10px 14px; font-size: 13px; cursor: pointer; display: flex; align-items: center; color: var(--text-primary); transition: background 0.15s; white-space: nowrap;`;
         item.onmousedown = (e) => e.preventDefault();
         item.onmouseover = () => item.style.backgroundColor = 'var(--hover-bg)';
@@ -399,7 +399,7 @@ function showAIMenu(x: number, y: number): void {
         btn.type = 'button'; 
         btn.innerHTML = `
             <div style="display: flex; align-items: center;">
-                <span style="margin-right: 12px; display: flex; color: var(--text-secondary);">${icon}</span>
+                <span style="margin-right: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); width: 16px; height: 16px; flex-shrink: 0;">${icon}</span>
                 <span style="font-weight: 500;">${text}</span>
             </div>
             ${shortcut ? `<span style="color: var(--text-secondary); font-size: 11px; margin-left: 24px; letter-spacing: 0.5px; opacity: 0.8;">${shortcut}</span>` : ''}
