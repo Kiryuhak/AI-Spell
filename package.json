@@ -1,11 +1,12 @@
 {
   "name": "ai-spell",
-  "version": "1.0.0",
+  "version": "2.5",
   "description": "",
   "main": "background.js",
-  "scripts": {
+ "scripts": {
     "build": "tsc",
-    "watch": "tsc -w"
+    "watch": "tsc -w",
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -21,6 +22,9 @@
   "homepage": "https://github.com/Kiryuhak/AI-Spell#readme",
   "devDependencies": {
     "@types/chrome": "^0.2.0",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "typescript": "^6.0.3"
   }
 }

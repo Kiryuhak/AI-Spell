@@ -1,11 +1,24 @@
-# Зависимости Node.js
+# Зависимости
 node_modules/
 
-# Логи npm (если вдруг появятся ошибки сборки)
-npm-debug.log
-*.log
+# Логи и кэш
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.eslintcache
 
-# Файлы настроек редакторов и ОС
-.vscode/
+# Тесты (Jest)
+coverage/
+
+# Системные файлы macOS и Windows
 .DS_Store
 Thumbs.db
+
+# Конфигурации IDE (VS Code, WebStorm)
+.vscode/
+.idea/
+
+# Секретные ключи (если когда-то решите добавить .env)
+.env
+.env.local

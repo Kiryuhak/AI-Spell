@@ -1,13 +1,28 @@
 {
   "manifest_version": 3,
   "name": "AI Spell & Emoji",
-  "version": "2.0.0",
+  "version": "2.5",
   "description": "Умный помощник для работы с текстом на базе Mistral AI",
-  "permissions": [
+"permissions": [
+    "storage",
     "activeTab",
-    "scripting",
-    "storage"
+    "contextMenus",
+    "clipboardRead"
   ],
+  "commands": {
+    "spellcheck": {
+      "suggested_key": { "default": "Alt+R", "mac": "Alt+R" },
+      "description": "Исправить ошибки"
+    },
+    "style": {
+      "suggested_key": { "default": "Alt+Y", "mac": "Alt+Y" },
+      "description": "Переписать текст"
+    },
+    "emoji": {
+      "suggested_key": { "default": "Alt+T", "mac": "Alt+T" },
+      "description": "Подобрать эмодзи"
+    }
+  },
   "background": {
     "service_worker": "dist/background.js",
     "type": "module"
