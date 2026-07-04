@@ -2,82 +2,29 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>История AI Spell</title>
+    <title>История запросов AI Spell</title>
     <style>
-        :root {
-            --bg-main: #F3F4F9;
-            --bg-card: #FFFFFF;
-            --text-main: #1D1B20;
-            --text-secondary: #49454F;
-            --primary: #6750A4;
-            --border: #e0e0e0;
-            --err-bg: #F9DEDC;
-            --err-text: #410E0B;
-            --succ-bg: #C4EED0;
-            --succ-text: #072711;
-            --expl-bg: #FFF8E1;
-            --expl-border: #F9AB00;
-            --expl-hover: #FFECB3;
-            --expl-text: #5F6368;
-            --badge-bg: #E8DEF8;
-        }
-        [data-theme="dark"] {
-            --bg-main: #141218;
-            --bg-card: #211F26;
-            --text-main: #E6E1E5;
-            --text-secondary: #CAC4D0;
-            --primary: #D0BCFF;
-            --border: #49454F;
-            --err-bg: #5c1e19;
-            --err-text: #f2b8b5;
-            --succ-bg: #0f5223;
-            --succ-text: #c4eed0;
-            --expl-bg: #423000;
-            --expl-border: #F9AB00;
-            --expl-hover: #5c4300;
-            --expl-text: #E6E1E5;
-            --badge-bg: #4A4458;
-        }
-
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg-main); color: var(--text-main); margin: 0; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; transition: background 0.3s, color 0.3s; }
-        .header { width: 100%; max-width: 800px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        h1 { margin: 0; font-size: 28px; font-weight: 500; }
-        .clear-btn { background-color: transparent; color: var(--primary); border: 1px solid var(--primary); padding: 10px 20px; border-radius: 100px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
-        .clear-btn:hover { background-color: rgba(103, 80, 164, 0.08); }
-        #history-container { width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 20px; }
-        .history-card { background-color: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--border); }
-        .card-header { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); font-weight: 500; }
-        .mode-badge { background: var(--badge-bg); color: var(--primary); padding: 4px 10px; border-radius: 8px; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
-        .text-blocks { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .text-box { padding: 16px; border-radius: 12px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
-        .original-text { background-color: var(--err-bg); color: var(--err-text); }
-        .result-text { background-color: var(--succ-bg); color: var(--succ-text); }
-
-        .explanation-box { background-color: var(--expl-bg); border-left: 4px solid var(--expl-border); border-radius: 4px 12px 12px 4px; overflow: hidden; margin-top: 8px; }
-        .explanation-header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; transition: background 0.2s; }
-        .explanation-header:hover { background-color: var(--expl-hover); }
-        .explanation-title-wrap { display: flex; align-items: center; gap: 8px; }
-        .explanation-icon { color: var(--expl-border); flex-shrink: 0; }
-        .explanation-title { font-size: 12px; font-weight: 700; color: var(--expl-border); text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
-        .explanation-chevron { width: 16px; height: 16px; color: var(--expl-border); transition: transform 0.3s; }
-        .explanation-content { display: none; padding: 0 16px 16px 42px; }
-        .explanation-text { font-size: 13px; color: var(--expl-text); line-height: 1.5; margin: 0; padding-top: 12px; border-top: 1px solid rgba(249, 171, 0, 0.2); }
-        .explanation-box.open .explanation-content { display: block; }
-        .explanation-box.open .explanation-chevron { transform: rotate(180deg); }
-
-        .empty-state { text-align: center; color: var(--text-secondary); margin-top: 50px; font-size: 16px; }
-        .copy-btn { margin-top: 8px; background: none; border: none; color: var(--primary); cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 4px; padding: 0; }
-        .copy-btn:hover { text-decoration: underline; }
+        body { font-family: system-ui, sans-serif; background: #f8f9fa; color: #202124; padding: 40px; margin: 0; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #1a73e8; font-size: 24px; margin-bottom: 24px; }
+        .history-card { background: white; border: 1px solid #dadce0; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .history-header { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 13px; color: #5f6368; }
+        .mode-badge { background: #e8f0fe; color: #1967d2; padding: 4px 8px; border-radius: 6px; font-weight: 600; text-transform: uppercase;}
+        .text-block { margin-bottom: 12px; }
+        .label { font-size: 12px; font-weight: 600; color: #9aa0a6; text-transform: uppercase; margin-bottom: 4px; }
+        .content { font-size: 14px; line-height: 1.5; white-space: pre-wrap; background: #f1f3f4; padding: 12px; border-radius: 8px; font-family: inherit;}
+        .content.result { background: #e6f4ea; color: #137333; border: 1px solid #ceead6; }
+        .empty { text-align: center; color: #5f6368; margin-top: 40px; font-size: 16px; }
+        button.clear-btn { background: #fff; border: 1px solid #dadce0; padding: 8px 16px; border-radius: 8px; cursor: pointer; color: #d93025; font-weight: 500; margin-bottom: 24px; transition: 0.2s;}
+        button.clear-btn:hover { background: #fce8e6; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>История изменений</h1>
-        <button class="clear-btn" id="clearHistoryBtn">Очистить историю</button>
+    <div class="container">
+        <h1>История ваших запросов</h1>
+        <button id="clearBtn" class="clear-btn">Очистить историю</button>
+        <div id="historyList"></div>
     </div>
-    <div id="history-container"></div>
-    <!-- Весь JavaScript теперь находится только в этом внешнем файле -->
     <script src="dist/history.js"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Spell & Emoji",
-  "version": "2.5",
+  "version": "2.5.1",
   "description": "Умный помощник для работы с текстом на базе Mistral AI",
 "permissions": [
     "storage",

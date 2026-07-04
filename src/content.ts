@@ -23,8 +23,33 @@ let isManuallyPositioned = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
-// --- СЛУШАЕМ КОМАНДЫ ОТ КОНТЕКСТНОГО МЕНЮ И ХОТКЕЕВ ---
-// --- СЛУШАЕМ КОМАНДЫ ОТ КОНТЕКСТНОГО МЕНЮ И ХОТКЕЕВ ---
+
+// Генерируем уникальный ключ для текста и режима
+async function getCacheHash(mode: string, text: string): Promise<string> {
+    const msgBuffer = new TextEncoder().encode(mode + ":" + text.trim());
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return 'ai_cache_' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Превращаем ответы нейросети (со списками и жирным текстом) в красивый HTML
+function parseMarkdownToHTML(text: string): string {
+    let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;"); // Защита от багов
+    html = html.replace(/\*\*([\s\S]*?)\*\*/g, '<mark>$1</mark>'); // Жирный текст
+    html = html.replace(/\*/g, ''); // Удаляем лишние звездочки
+    
+    // Парсим списки (маркированные "- " и нумерованные "1. ")
+    html = html.replace(/^- (.*)$/gm, '<li>$1</li>');
+    html = html.replace(/^\d+\.\s(.*)$/gm, '<li>$1</li>');
+    
+    // Оборачиваем списки в тег <ul> с красивыми отступами
+    html = html.replace(/(<li>.*<\/li>(\n<li>.*<\/li>)*)/g, '<ul style="margin: 8px 0; padding-left: 20px;">$1</ul>');
+    
+    // Оставшиеся переносы строк делаем абзацами
+    html = html.replace(/\n/g, '<br>');
+    return html;
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "contextMenuClicked") {
         saveSelectionState(request.text);
@@ -193,7 +218,10 @@ function injectStyles(): void {
                 transition: opacity 0.15s ease; border-radius: 12px;
                 box-shadow: 0 8px 24px -4px var(--shadow-color), 0 4px 8px -4px var(--shadow-color);
                 border: 1px solid var(--border-color);
+                animation: aiSpellFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12); /* Делаем тень более объемной */
             }
+            
             #gemini-extension-ui[data-theme="dark"] {
                 --bg-primary: #1e1e24; --bg-secondary: #2b2b36; --text-primary: #f8fafc; --text-secondary: #94a3b8;
                 --border-color: rgba(255,255,255,0.08); --hover-bg: #3f3f46; --shadow-color: rgba(0,0,0,0.5);
@@ -202,6 +230,7 @@ function injectStyles(): void {
             #gemini-extension-ui svg { min-width: 14px !important; min-height: 14px !important; }
             @keyframes gemini-spin { to { transform: rotate(360deg); } } 
             @keyframes gemini-flip { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(180deg); } }
+            @keyframes aiSpellFadeIn { 0% { opacity: 0; transform: translateY(12px) scale(0.98); /* Начинаем чуть ниже и меньше */ } 100% { opacity: 1; transform: translateY(0) scale(1); /* Встает на свое место */}}
             .gemini-loader { width: 14px; height: 14px; border: 2.5px solid var(--text-secondary); border-top-color: transparent; border-radius: 50%; animation: gemini-spin 0.8s linear infinite; }
             .gemini-hourglass { animation: gemini-flip 2s ease-in-out infinite; display: flex; align-items: center; justify-content: center; }
             #gemini-extension-ui mark { background: #dcfce7; color: #166534; padding: 2px 4px; border-radius: 4px; font-weight: 500; }
@@ -480,6 +509,7 @@ function handleActionClick(mode: string): void {
     executeRequest(mode);
 }
 
+
 function executeRequest(mode: string): void {
     if (!popupUI) return;
     
@@ -605,20 +635,35 @@ function executeRequest(mode: string): void {
         streamPort.onMessage.addListener((response) => {
             if (response.status === "chunk") {
                 fullResult += response.text;
-                let safeHtml = fullResult.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                safeHtml = safeHtml.replace(/\*\*([\s\S]*?)\*\*/g, '<mark>$1</mark>');
-                if (safeHtml.includes('**')) safeHtml = safeHtml.replace(/\*\*([^*]*)$/, '<mark>$1</mark>');
-                safeHtml = safeHtml.replace(/\*/g, ''); 
-                
-                contentPane.innerHTML = safeHtml;
+                // ИСПОЛЬЗУЕМ НАШ НОВЫЙ ПАРСЕР:
+                contentPane.innerHTML = parseMarkdownToHTML(fullResult);
                 contentPane.scrollTop = contentPane.scrollHeight; 
                 adjustPopupPosition();
             } else if (response.status === "done") {
-                let finalHtml = fullResult.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                finalHtml = finalHtml.replace(/\*\*([\s\S]*?)\*\*/g, '<mark>$1</mark>');
-                finalHtml = finalHtml.replace(/\*/g, '');
-                contentPane.innerHTML = finalHtml;
+                contentPane.innerHTML = parseMarkdownToHTML(fullResult);
                 finishStream();
+
+                // 🔥 СОХРАНЯЕМ В КЭШ
+                const cacheModeKey = mode === 'translate' ? mode + currentTargetLang : mode;
+                getCacheHash(cacheModeKey, currentSelection.text).then(cacheKey => {
+                    chrome.storage.local.set({ [cacheKey]: fullResult });
+                });
+                
+                // 🔥 СОХРАНЯЕМ В ИСТОРИЮ (только успешные ответы)
+                const historyItem = {
+                    id: Date.now(),
+                    mode: mode,
+                    original: currentSelection.text,
+                    result: fullResult.replace(/\*/g, ''), // Чистый текст для истории
+                    date: new Date().toISOString()
+                };
+                chrome.storage.local.get({ aiHistory: [] }, (data) => {
+                    const history = data.aiHistory as any[];
+                    history.unshift(historyItem); // Добавляем в начало списка
+                    if (history.length > 50) history.pop(); // Храним только последние 50 штук
+                    chrome.storage.local.set({ aiHistory: history });
+                });
+
             } else if (response.status === "error") {
                 if (response.error.toLowerCase().includes('rate limit') || response.error.includes('429')) {
                     showRateLimitTimer(5, startStream, contentPane);
@@ -656,7 +701,6 @@ function executeRequest(mode: string): void {
             replaceBtn.onclick = (e) => { 
                 e.preventDefault(); 
                 e.stopPropagation(); 
-                // Передаем кнопку, чтобы можно было изменить ее внешний вид
                 insertTextToDOM(cleanResult, replaceBtn); 
             };
             
@@ -676,7 +720,34 @@ function executeRequest(mode: string): void {
         adjustPopupPosition();
     }
 
-    startStream();
+    // 🔥 ПРОВЕРЯЕМ КЭШ ПЕРЕД ЗАПУСКОМ (Вместо простого вызова startStream())
+    async function checkCacheAndRun() {
+        // Учитываем язык в ключе кэша, если это перевод
+        const cacheModeKey = mode === 'translate' ? mode + currentTargetLang : mode;
+        const cacheKey = await getCacheHash(cacheModeKey, currentSelection.text);
+        
+        // Передаем cacheKey в квадратных скобках
+        chrome.storage.local.get([cacheKey], (result) => {
+            if (result[cacheKey]) {
+                // Если есть в кэше — выдаем результат МГНОВЕННО!
+                // Явно говорим TypeScript, что мы достали строку (as string)
+                fullResult = result[cacheKey] as string;
+                
+                let finalHtml = parseMarkdownToHTML(fullResult);
+                finalHtml = finalHtml.replace(/\*\*([\s\S]*?)\*\*/g, '<mark>$1</mark>');
+                finalHtml = finalHtml.replace(/\*/g, '');
+                
+                contentPane.innerHTML = finalHtml;
+                finishStream(true); // Рисуем кнопки "Скопировать" и "Заменить"
+            } else {
+                // Если кэша нет — обращаемся к API через background.js
+                startStream();
+            }
+        });
+    }
+
+    // Запускаем проверку кэша
+    checkCacheAndRun();
 }
 
 function adjustPopupPosition(): void {

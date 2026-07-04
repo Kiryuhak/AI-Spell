@@ -28,10 +28,10 @@ chrome.commands.onCommand.addListener((command) => {
         }
     });
 });
+// Открытие вкладки с историей по клику в меню
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "openHistory") {
         chrome.tabs.create({ url: chrome.runtime.getURL("history.html") });
-        return true;
     }
 });
 chrome.runtime.onConnect.addListener((port) => {

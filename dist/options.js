@@ -1,32 +1,58 @@
 "use strict";
 // Функция для сохранения настроек
-function saveOptions() {
-    // Явно указываем типы элементов, чтобы TS знал об их свойствах (value)
+// Изменяем функцию на асинхронную (async)
+async function saveOptions() {
     const apiKeyInput = document.getElementById('apiKey');
     const toneSelect = document.getElementById('toneSelect');
     const themeSelect = document.getElementById('themeSelect');
-    const statusDiv = document.getElementById('status');
     const searchSelect = document.getElementById('searchEngine');
+    const statusDiv = document.getElementById('status');
+    const saveBtn = document.getElementById('saveBtn');
     const apiKey = apiKeyInput.value.trim();
-    const selectedTone = toneSelect.value;
-    const selectedTheme = themeSelect.value;
+    // 1. Анимация загрузки на кнопке
+    const originalBtnText = saveBtn.textContent;
+    saveBtn.textContent = 'Проверка ключа...';
+    saveBtn.style.opacity = '0.7';
+    saveBtn.disabled = true;
+    // 2. ПРОВЕРКА КЛЮЧА
+    if (apiKey) {
+        try {
+            // Делаем тестовый запрос к бесплатному эндпоинту Mistral
+            const response = await fetch('https://api.mistral.ai/v1/models', {
+                headers: { 'Authorization': `Bearer ${apiKey}` }
+            });
+            if (!response.ok) {
+                // Если Mistral ответил ошибкой (например, 401 Unauthorized)
+                statusDiv.textContent = '❌ Ошибка: Неверный API ключ!';
+                statusDiv.style.color = '#ef4444'; // Красный
+                statusDiv.style.display = 'block';
+                saveBtn.textContent = originalBtnText;
+                saveBtn.style.opacity = '1';
+                saveBtn.disabled = false;
+                return; // Прерываем сохранение!
+            }
+        }
+        catch (error) {
+            console.error("Ошибка сети при проверке ключа", error);
+        }
+    }
+    // 3. Сохраняем, если всё отлично
     chrome.storage.local.set({
         mistralApiKey: apiKey,
-        selectedTone: selectedTone,
-        selectedTheme: selectedTheme,
+        selectedTone: toneSelect.value,
+        selectedTheme: themeSelect.value,
         searchEngine: searchSelect.value
     }, () => {
-        // Показываем сообщение об успешном сохранении
         if (statusDiv) {
-            statusDiv.textContent = 'Настройки успешно сохранены!';
-            statusDiv.style.color = '#10b981';
+            statusDiv.textContent = '✓ Настройки успешно сохранены!';
+            statusDiv.style.color = '#10b981'; // Зеленый
             statusDiv.style.display = 'block';
-            // Прячем сообщение через 2 секунды
-            setTimeout(() => {
-                statusDiv.style.display = 'none';
-                statusDiv.textContent = '';
-            }, 2000);
+            setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
         }
+        // Возвращаем кнопку в норму
+        saveBtn.textContent = originalBtnText;
+        saveBtn.style.opacity = '1';
+        saveBtn.disabled = false;
     });
 }
 // Функция для восстановления настроек при открытии страницы
@@ -49,6 +75,7 @@ function restoreOptions() {
     });
 }
 // Назначаем обработчики событий после загрузки HTML-страницы
+// Назначаем обработчики событий после загрузки HTML-страницы
 document.addEventListener('DOMContentLoaded', () => {
     restoreOptions();
     // Находим кнопку сохранения и вешаем на нее клик
@@ -56,10 +83,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (saveBtn) {
         saveBtn.addEventListener('click', saveOptions);
     }
-    // 🔥 ИСПРАВЛЕНО: теперь скрипт ищет правильный id="app-version"
+    // Автоматическая подстановка версии расширения
     const versionBadge = document.getElementById('app-version');
     if (versionBadge) {
         const manifest = chrome.runtime.getManifest();
         versionBadge.textContent = `v${manifest.version}`;
+    }
+    // 🔥 ЛОГИКА ДЛЯ ГЛАЗКА ПАРОЛЯ
+    const toggleBtn = document.getElementById('toggleApiKey');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const apiKeyInput = document.getElementById('apiKey');
+    if (toggleBtn && eyeIcon && apiKeyInput) {
+        toggleBtn.addEventListener('click', () => {
+            // Проверяем, какой сейчас тип у поля (скрытый или открытый)
+            const type = apiKeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            apiKeyInput.setAttribute('type', type);
+            // Если текст открыт -> рисуем перечеркнутый глаз
+            if (type === 'text') {
+                eyeIcon.innerHTML = `
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                `;
+            }
+            else {
+                // Если скрыт -> рисуем обычный глаз
+                eyeIcon.innerHTML = `
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                `;
+            }
+        });
     }
 });
