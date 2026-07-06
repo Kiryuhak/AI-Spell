@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "__MSG_extDesc__",
   "default_locale": "ru",
   "permissions": [
     "storage",
     "activeTab",
+    "scripting",
     "contextMenus",
     "clipboardRead"
   ],
@@ -22,6 +23,10 @@
     "emoji": {
       "suggested_key": { "default": "Alt+T", "mac": "Alt+T" },
       "description": "Подобрать эмодзи"
+    },
+    "ocr": {
+      "suggested_key": { "default": "Alt+S", "mac": "Alt+S" },
+      "description": "Распознать текст на экране"
     }
   },
   "background": {

@@ -512,6 +512,8 @@ function executeRequest(mode) {
         headerText = `<span style="display:flex; align-items:center; gap:8px;">${ICONS.keyboard} Раскладка исправлена</span>`;
     else if (mode === "translate")
         headerText = 'Перевод';
+    else if (mode === "ocr")
+        headerText = `<span style="display:flex; align-items:center; gap:8px;">📸 Распознанный текст</span>`; // 🔥 НОВОЕ
     const header = document.createElement('div');
     header.className = 'gemini-header';
     header.style.cssText = 'padding: 12px 16px; font-size: 14px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; border-radius: 12px 12px 0 0; background: transparent; cursor: grab; user-select: none;';
@@ -608,7 +610,16 @@ function executeRequest(mode) {
             return;
         }
         streamPort = chrome.runtime.connect({ name: "geminiStream" });
-        streamPort.postMessage({ action: "callGemini", text: currentSelection.text, context: currentSelection.context, mode: mode, targetLang: currentTargetLang, pageTitle: document.title, pageUrl: window.location.hostname });
+        streamPort.postMessage({
+            action: "callGemini",
+            text: currentSelection.text,
+            context: currentSelection.context,
+            mode: mode,
+            targetLang: currentTargetLang,
+            pageTitle: document.title,
+            pageUrl: window.location.hostname,
+            imageUrl: currentSelection.imageUrl // 🔥 НОВОЕ
+        });
         streamPort.onMessage.addListener((response) => {
             if (response.status === "chunk") {
                 fullResult += response.text;
@@ -676,6 +687,10 @@ function executeRequest(mode) {
                 e.stopPropagation();
                 insertTextToDOM(cleanResult, replaceBtn);
             };
+            if (mode === 'ocr') {
+                navigator.clipboard.writeText(cleanResult);
+                headerTitleWrapper.innerHTML = `<span style="display:flex; align-items:center; gap:8px; color: #166534;">${ICONS.check} Текст скопирован!</span>`;
+            }
             const copyBtn = document.createElement('button');
             copyBtn.type = 'button';
             copyBtn.className = `${btnClass} icon-only`;
@@ -722,6 +737,10 @@ function executeRequest(mode) {
                         closePopup();
                     });
                 }, 50);
+                return;
+            }
+            if (mode === 'ocr') {
+                startStream();
                 return;
             }
             const cacheModeKey = mode === 'translate' ? mode + currentTargetLang : mode;
@@ -880,4 +899,121 @@ function closePopup() {
         setTimeout(() => { if (el && el.parentNode)
             el.remove(); }, 150);
     }
+}
+// ==========================================
+// 🔥 МОДУЛЬ УМНОГО OCR (НОЖНИЦЫ)
+// ==========================================
+let ocrOverlay = null;
+let ocrSelection = null;
+let ocrStartX = 0;
+let ocrStartY = 0;
+let isOcrSelecting = false;
+let capturedScreenshotDataUrl = "";
+// Слушаем команду на запуск OCR от background.js
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "startOcrMode") {
+        capturedScreenshotDataUrl = request.screenshotUrl;
+        initOcrOverlay();
+    }
+});
+function initOcrOverlay() {
+    if (ocrOverlay)
+        return; // Если уже открыто - игнорируем
+    // 1. Создаем затемняющий фон
+    ocrOverlay = document.createElement('div');
+    ocrOverlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.4); z-index: 2147483646; cursor: crosshair;
+    `;
+    // 2. Создаем прямоугольник выделения (светлое окно)
+    ocrSelection = document.createElement('div');
+    ocrSelection.style.cssText = `
+        position: fixed; border: 2px dashed #ffffff; background: rgba(255, 255, 255, 0.1);
+        display: none; z-index: 2147483647; pointer-events: none;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4); /* Эффект прорези в темном фоне */
+    `;
+    // Прячем стандартный фон, так как тень от рамки сделает затемнение
+    ocrOverlay.style.background = 'transparent';
+    ocrOverlay.appendChild(ocrSelection);
+    document.body.appendChild(ocrOverlay);
+    // 3. Логика рисования рамки
+    ocrOverlay.addEventListener('mousedown', (e) => {
+        isOcrSelecting = true;
+        ocrStartX = e.clientX;
+        ocrStartY = e.clientY;
+        if (ocrSelection) {
+            ocrSelection.style.display = 'block';
+            ocrSelection.style.left = `${ocrStartX}px`;
+            ocrSelection.style.top = `${ocrStartY}px`;
+            ocrSelection.style.width = '0px';
+            ocrSelection.style.height = '0px';
+        }
+    });
+    ocrOverlay.addEventListener('mousemove', (e) => {
+        if (!isOcrSelecting || !ocrSelection)
+            return;
+        const currentX = e.clientX;
+        const currentY = e.clientY;
+        const left = Math.min(ocrStartX, currentX);
+        const top = Math.min(ocrStartY, currentY);
+        const width = Math.abs(currentX - ocrStartX);
+        const height = Math.abs(currentY - ocrStartY);
+        ocrSelection.style.left = `${left}px`;
+        ocrSelection.style.top = `${top}px`;
+        ocrSelection.style.width = `${width}px`;
+        ocrSelection.style.height = `${height}px`;
+    });
+    ocrOverlay.addEventListener('mouseup', (e) => {
+        isOcrSelecting = false;
+        if (!ocrSelection)
+            return;
+        const rect = ocrSelection.getBoundingClientRect();
+        closeOcrOverlay();
+        if (rect.width > 10 && rect.height > 10) {
+            cropAndProcessImage(rect);
+        }
+    });
+    // Отмена по Escape
+    document.addEventListener('keydown', function escapeListener(e) {
+        if (e.key === 'Escape' && ocrOverlay) {
+            closeOcrOverlay();
+            document.removeEventListener('keydown', escapeListener);
+        }
+    });
+}
+function closeOcrOverlay() {
+    if (ocrOverlay && ocrOverlay.parentNode) {
+        ocrOverlay.parentNode.removeChild(ocrOverlay);
+    }
+    ocrOverlay = null;
+    ocrSelection = null;
+}
+// 4. Вырезаем кусок изображения через Canvas
+function cropAndProcessImage(rect) {
+    const img = new Image();
+    img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx)
+            return;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.drawImage(img, rect.left * dpr, rect.top * dpr, rect.width * dpr, rect.height * dpr, 0, 0, canvas.width, canvas.height);
+        const croppedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+        currentSelection = { text: "Извлекаем текст...", context: "", range: null, activeElement: null, start: null, end: null, isInput: false, imageUrl: croppedBase64 };
+        lastAnchorX = rect.left + rect.width / 2;
+        lastAnchorY = rect.bottom + 10;
+        closePopup();
+        injectStyles();
+        popupUI = document.createElement('div');
+        popupUI.id = 'gemini-extension-ui';
+        applyThemeToPopup(popupUI);
+        // 🔥 ИСПРАВЛЕНИЕ: ВОТ ОНА — ПОТЕРЯННАЯ СТРОКА (CSS-стили панели)
+        popupUI.style.cssText = `position: fixed !important; left: -9999px; top: -9999px; background: var(--bg-primary); z-index: 2147483647 !important; font-family: system-ui, sans-serif; font-size: 13px; color: var(--text-primary);`;
+        getPopupContainer().appendChild(popupUI);
+        // Поехали!
+        executeRequest('ocr');
+    };
+    img.src = capturedScreenshotDataUrl;
 }

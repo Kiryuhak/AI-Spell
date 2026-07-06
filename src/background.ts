@@ -5,27 +5,60 @@ chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({ id: "emoji", title: "Подобрать эмодзи (Alt+T)", contexts: ["selection"] });
     chrome.contextMenus.create({ id: "layout", title: "Исправить раскладку", contexts: ["selection"] });
     chrome.contextMenus.create({ id: "translate", title: "Перевести", contexts: ["selection"] });
+    
+    // 🔥 НОВОЕ: Добавляем OCR. Он будет доступен при клике на страницу, картинку или выделение
+    chrome.contextMenus.create({ id: "ocr", title: "📸 Распознать текст (Alt+S)", contexts: ["page", "image", "selection"] });
 });
 
 // 2. Обработчик клика по системному контекстному меню
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (tab && tab.id) {
-        chrome.tabs.sendMessage(tab.id, { 
-            action: "contextMenuClicked", 
-            mode: info.menuItemId, 
-            text: info.selectionText 
-        });
+        // 🔥 НОВОЕ: Если кликнули "Распознать текст" — сразу делаем скриншот
+        if (info.menuItemId === "ocr") {
+            chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" }, (dataUrl) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Ошибка захвата:", chrome.runtime.lastError);
+                    return;
+                }
+                chrome.tabs.sendMessage(tab.id!, { 
+                    action: "startOcrMode", 
+                    screenshotUrl: dataUrl 
+                });
+            });
+        } else {
+            // Стандартные текстовые функции
+            chrome.tabs.sendMessage(tab.id, { 
+                action: "contextMenuClicked", 
+                mode: info.menuItemId, 
+                text: info.selectionText || ""
+            });
+        }
     }
 });
 
-// 3. Обработчик глобальных горячих клавиш Chrome (Alt+R, Alt+Y, Alt+T)
+// 3. Обработчик глобальных горячих клавиш Chrome (включая Ножницы)
 chrome.commands.onCommand.addListener((command) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0] && tabs[0].id) {
-            chrome.tabs.sendMessage(tabs[0].id, { 
-                action: "hotkeyTriggered", 
-                mode: command 
-            });
+            // 🔥 Если нажали Alt+S (Ножницы)
+            if (command === "ocr") {
+                chrome.tabs.captureVisibleTab(tabs[0].windowId, { format: "png" }, (dataUrl) => {
+                    if (chrome.runtime.lastError) {
+                        console.error("Ошибка захвата:", chrome.runtime.lastError);
+                        return;
+                    }
+                    chrome.tabs.sendMessage(tabs[0].id!, { 
+                        action: "startOcrMode", 
+                        screenshotUrl: dataUrl 
+                    });
+                });
+            } else {
+                // Стандартные текстовые хоткеи (Alt+R, Alt+Y, Alt+T)
+                chrome.tabs.sendMessage(tabs[0].id, { 
+                    action: "hotkeyTriggered", 
+                    mode: command 
+                });
+            }
         }
     });
 });
@@ -40,48 +73,71 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// 5. ДВИЖОК API: Работа с Mistral AI через потоковое соединение (Streaming)
+// 5. ДВИЖОК API: Работа с Mistral AI (Text & Vision) через потоковое соединение
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name !== "geminiStream") return;
 
     port.onMessage.addListener(async (msg) => {
         if (msg.action === "callGemini") {
             try {
-                // Достаем ключ и стиль из хранилища, явно указывая TypeScript, что это строки
+                // Достаем ключ и стиль из локального хранилища строго как строки
                 const data = await chrome.storage.local.get(['mistralApiKey', 'selectedTone']);
                 const mistralApiKey = data.mistralApiKey as string;
                 const selectedTone = data.selectedTone as string;
                 
                 if (!mistralApiKey) {
-                    port.postMessage({ status: "error", error: "API-ключ не настроен. Откройте настройки расширения." });
+                    port.postMessage({ status: "error", error: "API-ключ не настроен." });
                     return;
                 }
 
-                // --- ФОРМИРУЕМ СИСТЕМНЫЙ ПРОМПТ ---
-                let systemPrompt = "Ты умный ассистент по работе с текстом. Твоя задача — вернуть ТОЛЬКО обработанный текст. Не пиши приветствий, объяснений, не оборачивай текст в кавычки или блоки кода (```). Сохраняй оригинальное HTML-форматирование (теги), если оно есть.";
-                
-                // 🔥 Добавляем контекст страницы, на которой находится пользователь
-                if (msg.pageUrl || msg.pageTitle) {
-                    systemPrompt += `\nКонтекст: Пользователь работает с текстом на сайте "${msg.pageUrl || 'неизвестный сайт'}" (Заголовок: "${msg.pageTitle || 'Без заголовка'}"). Учитывай специфику этого ресурса при необходимости.`;
-                }
+                // --- ФОРМИРУЕМ ПАРАМЕТРЫ ЗАПРОСА ---
+                let currentModel = "mistral-large-latest";
+                let apiMessages: any[] = [];
 
-                // Добавляем специфичные инструкции для выбранного режима
-                if (msg.mode === "spellcheck") {
-                    systemPrompt += " Тщательно исправь все ошибки в тексте. ОБЯЗАТЕЛЬНО оборачивай каждое исправленное, измененное или добавленное слово в двойные звездочки, вот так: **исправленное**.";
-                } else if (msg.mode === "style") {
-                    const toneMap: Record<string, string> = {
-                        business: "в строгом, деловом и профессиональном стиле",
-                        friendly: "в дружелюбном, открытом и разговорном стиле",
-                        persuasive: "в убедительном и продающем стиле",
-                        creative: "в креативном стиле с использованием ярких метафор"
-                    };
-                    systemPrompt += ` Перепиши текст ${toneMap[selectedTone || 'business']}, сделав его более естественным. Ключевые измененные фразы или новые слова оборачивай в двойные звездочки, например: **новая фраза**.`;
-                } else if (msg.mode === "emoji") {
-                    systemPrompt += " Добавь подходящие по смыслу эмодзи в предоставленный текст, чтобы сделать его более выразительным. Не переборщи.";
-                } else if (msg.mode === "layout") {
-                    systemPrompt += " Исправь текст, набранный в неправильной раскладке (например, 'ghbdtn' -> 'привет'). Исправленные слова оберни в двойные звездочки: **привет**.";
-                } else if (msg.mode === "translate") {
-                    systemPrompt += ` Переведи этот текст на ${msg.targetLang} язык.`;
+                // 📸 Если пришла картинка (Режим OCR)
+                if (msg.mode === "ocr" && msg.imageUrl) {
+                    currentModel = "pixtral-12b-2409";
+                    apiMessages = [
+                        {
+                            role: "user",
+                            content: [
+                                { type: "text", text: "Распознай и извлеки весь текст с этого изображения. Верни ТОЛЬКО извлеченный текст, без пояснений, кавычек и приветствий. Точно сохраняй оригинальные переносы строк и абзацы." },
+                                { type: "image_url", image_url: msg.imageUrl }
+                            ]
+                        }
+                    ];
+                } else {
+                    // 📝 Стандартный текстовый режим
+                    let systemPrompt = "Ты умный ассистент по работе с текстом. Твоя задача — вернуть ТОЛЬКО обработанный текст. Не пиши приветствий, объяснений, не оборачивай текст в кавычки или блоки кода (```). Сохраняй оригинальное HTML-форматирование (теги), если оно есть.";
+                    
+                    // Добавляем контекст страницы
+                    if (msg.pageUrl || msg.pageTitle) {
+                        systemPrompt += `\nКонтекст: Пользователь работает с текстом на сайте "${msg.pageUrl || 'неизвестный сайт'}" (Заголовок: "${msg.pageTitle || 'Без заголовка'}"). Учитывай специфику этого ресурса при необходимости.`;
+                    }
+
+                    // Специфичные инструкции
+                    if (msg.mode === "spellcheck") {
+                        systemPrompt += " Тщательно исправь все ошибки в тексте. ОБЯЗАТЕЛЬНО оборачивай каждое исправленное, измененное или добавленное слово в двойные звездочки, вот так: **исправленное**.";
+                    } else if (msg.mode === "style") {
+                        const toneMap: Record<string, string> = {
+                            business: "в строгом, деловом и профессиональном стиле",
+                            friendly: "в дружелюбном, открытом и разговорном стиле",
+                            persuasive: "в убедительном и продающем стиле",
+                            creative: "в креативном стиле с использованием ярких метафор"
+                        };
+                        systemPrompt += ` Перепиши текст ${toneMap[selectedTone || 'business']}, сделав его более естественным. Ключевые измененные фразы или новые слова оборачивай в двойные звездочки, например: **новая фраза**.`;
+                    } else if (msg.mode === "emoji") {
+                        systemPrompt += " Добавь подходящие по смыслу эмодзи в предоставленный текст, чтобы сделать его более выразительным. Не переборщи.";
+                    } else if (msg.mode === "layout") {
+                        systemPrompt += " Исправь текст, набранный в неправильной раскладке (например, 'ghbdtn' -> 'привет'). Исправленные слова оберни в двойные звездочки: **привет**.";
+                    } else if (msg.mode === "translate") {
+                        systemPrompt += ` Переведи этот текст на ${msg.targetLang} язык.`;
+                    }
+
+                    apiMessages = [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: `Широкий контекст вокруг выделенного текста: ${msg.context || ''}\n\nСам выделенный текст для обработки: ${msg.text}` }
+                    ];
                 }
 
                 // --- ЗАПРОС К MISTRAL API ---
@@ -92,11 +148,8 @@ chrome.runtime.onConnect.addListener((port) => {
                         'Authorization': `Bearer ${mistralApiKey}`
                     },
                     body: JSON.stringify({
-                        model: "mistral-large-latest",
-                        messages: [
-                            { role: "system", content: systemPrompt },
-                            { role: "user", content: `Широкий контекст вокруг выделенного текста: ${msg.context || ''}\n\nСам выделенный текст для обработки: ${msg.text}` }
-                        ],
+                        model: currentModel,
+                        messages: apiMessages,
                         stream: true // Включаем потоковую передачу
                     })
                 });
