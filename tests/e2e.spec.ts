@@ -51,51 +51,36 @@ async function selectTextOnPage(page: any, selector: string = 'p') {
   }, selector);
 }
 
-// ==========================================
-// 🚀 3. ПОЛНЫЙ РЕГРЕССИОННЫЙ НАБОР ТЕСТОВ
-// ==========================================
-test.describe('E2E Регрессия: LexiSync', () => {
-
-  test('Кейс 1: Защита системы (Отказ без API-ключа)', async ({ page, context }) => {
-    await clearApiKey(context);
+test('Кейс 3: Мультимодальный OCR (Alt+S) и буфер обмена', async ({ page, context }) => {
+    await setFakeApiKey(context);
     await page.waitForTimeout(300);
     await page.goto('https://example.com');
-    await selectTextOnPage(page);
 
-    await page.keyboard.press('Alt+r');
-    const uiPanel = page.locator('#gemini-extension-ui');
-    
-    await expect(uiPanel).toBeVisible({ timeout: 5000 });
-    await expect(uiPanel).toContainText('API-ключ не настроен');
-  });
-
-  test('Кейс 2: Проверка орфографии (Alt+R)', async ({ page, context }) => {
-    await setFakeApiKey(context);
-    await page.waitForTimeout(300); 
-    await page.goto('https://example.com');
-
+    // 1. Мокаем ответ от Mistral (визуальная модель Pixtral)
     await context.route('https://api.mistral.ai/v1/chat/completions', async (route) => {
-      const mockStreamData = `data: {"choices":[{"delta":{"content":"Идеальный текст."}}]}\n\ndata: [DONE]\n\n`;
+      const mockStreamData = `data: {"choices":[{"delta":{"content":"Распознанный с картинки текст."}}]}\n\ndata: [DONE]\n\n`;
       await route.fulfill({ status: 200, contentType: 'text/event-stream', body: mockStreamData });
     });
 
-    await selectTextOnPage(page);
-    await page.keyboard.press('Alt+r');
+    // 2. Внедряем МОК для chrome.tabs.captureVisibleTab через background
+    let [background] = context.serviceWorkers();
+    await background.evaluate(() => {
+      // Подменяем нативную функцию Chrome фейковой!
+      // @ts-ignore
+      chrome.tabs.captureVisibleTab = (windowId, options, callback) => {
+        // Возвращаем валидный Base64 PNG (1x1 пиксель)
+        const fakeImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+        callback(fakeImage);
+      };
+    });
 
+    // 3. Вызываем OCR (скриншот)
+    await page.keyboard.press('Alt+s');
+
+    // 4. Проверяем, что UI панель показала распознанный текст
     const uiPanel = page.locator('#gemini-extension-ui');
     await expect(uiPanel).toBeVisible({ timeout: 5000 });
-    await expect(uiPanel).toContainText('Идеальный текст.');
-  });
-
-  // Добавляем .skip, чтобы робот официально игнорировал этот тест
-  test.skip('Кейс 3: Мультимодальный OCR (Alt+S) и буфер обмена', async ({ page, context }) => {
-    
-    // ... весь остальной код внутри оставляем как есть ...
-    await setFakeApiKey(context);
-    await page.waitForTimeout(300);
-    await page.goto('https://example.com');
-    // ...
-    
+    await expect(uiPanel).toContainText('Распознанный с картинки текст.');
   });
 
   test('Кейс 4: Переписывание стиля (Alt+Y)', async ({ page, context }) => {

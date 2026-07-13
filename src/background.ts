@@ -1,13 +1,13 @@
-// 1. Создаем элементы в системном контекстном меню (ПКМ) при установке расширения
+// 1. Создаем элементы в системном контекстном меню безопасно (с предварительной очисткой)
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.contextMenus.create({ id: "spellcheck", title: "Исправить ошибки (Alt+R)", contexts: ["selection"] });
-    chrome.contextMenus.create({ id: "style", title: "Переписать текст (Alt+Y)", contexts: ["selection"] });
-    chrome.contextMenus.create({ id: "emoji", title: "Подобрать эмодзи (Alt+T)", contexts: ["selection"] });
-    chrome.contextMenus.create({ id: "layout", title: "Исправить раскладку", contexts: ["selection"] });
-    chrome.contextMenus.create({ id: "translate", title: "Перевести", contexts: ["selection"] });
-    
-    // 🔥 НОВОЕ: Добавляем OCR. Он будет доступен при клике на страницу, картинку или выделение
-    chrome.contextMenus.create({ id: "ocr", title: "📸 Распознать текст (Alt+S)", contexts: ["page", "image", "selection"] });
+    chrome.contextMenus.removeAll(() => {
+        chrome.contextMenus.create({ id: "spellcheck", title: "Исправить ошибки (Alt+R)", contexts: ["selection"] });
+        chrome.contextMenus.create({ id: "style", title: "Переписать текст (Alt+Y)", contexts: ["selection"] });
+        chrome.contextMenus.create({ id: "emoji", title: "Подобрать эмодзи (Alt+T)", contexts: ["selection"] });
+        chrome.contextMenus.create({ id: "layout", title: "Исправить раскладку", contexts: ["selection"] });
+        chrome.contextMenus.create({ id: "translate", title: "Перевести", contexts: ["selection"] });
+        chrome.contextMenus.create({ id: "ocr", title: "📸 Распознать текст (Alt+S)", contexts: ["page", "image", "selection"] });
+    });
 });
 
 // 2. Обработчик клика по системному контекстному меню
@@ -77,8 +77,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name !== "geminiStream") return;
 
+    // Создаем контроллер для отмены запроса
+    let abortController = new AbortController();
+
+    // Если UI-панель закрылась/отключилась — убиваем запрос к нейросети
+    port.onDisconnect.addListener(() => {
+        abortController.abort();
+        console.log("Порт закрыт: генерация отменена для экономии токенов.");
+    });
+
     port.onMessage.addListener(async (msg) => {
         if (msg.action === "callGemini") {
+            // Пересоздаем контроллер для нового запроса
+            abortController.abort();
+            abortController = new AbortController(); 
+
             try {
                 // Достаем ключ и стиль из локального хранилища строго как строки
                 const data = await chrome.storage.local.get(['mistralApiKey', 'selectedTone']);
@@ -130,7 +143,9 @@ chrome.runtime.onConnect.addListener((port) => {
                     } else if (msg.mode === "layout") {
                         systemPrompt += " Исправь текст, набранный в неправильной раскладке (например, 'ghbdtn' -> 'привет'). Исправленные слова оберни в двойные звездочки: **привет**.";
                     } else if (msg.mode === "translate") {
-                        systemPrompt += ` Переведи этот текст на ${msg.targetLang} язык.`;
+                        // Получаем язык браузера (например, "ru" или "en") или задаем русский по умолчанию
+                        const target = msg.targetLang || chrome.i18n.getUILanguage() || 'русский';
+                        systemPrompt += ` Переведи этот текст на ${target} язык.`;
                     }
 
                     apiMessages = [
@@ -142,6 +157,7 @@ chrome.runtime.onConnect.addListener((port) => {
                 // --- ЗАПРОС К MISTRAL API ---
                 const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
                     method: 'POST',
+                    signal: abortController.signal, // 🔥 ДОБАВЛЯЕМ СИГНАЛ СЮДА
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${mistralApiKey}`
@@ -149,7 +165,7 @@ chrome.runtime.onConnect.addListener((port) => {
                     body: JSON.stringify({
                         model: currentModel,
                         messages: apiMessages,
-                        stream: true // Включаем потоковую передачу
+                        stream: true
                     })
                 });
 
@@ -198,6 +214,9 @@ chrome.runtime.onConnect.addListener((port) => {
                 port.postMessage({ status: "done" });
 
             } catch (err: any) {
+                // 🔥 Игнорируем ошибку, если мы сами отменили запрос
+                if (err.name === 'AbortError') return; 
+                
                 console.error("Глобальная ошибка API:", err);
                 port.postMessage({ status: "error", error: err.message || "Неизвестная ошибка сети." });
             }

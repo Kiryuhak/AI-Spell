@@ -1,17 +1,1 @@
-"use strict";
-// --- Установка темы при открытии окна ---
-chrome.storage.local.get(['selectedTheme'], function (res) {
-    const theme = res.selectedTheme || 'auto';
-    if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-    }
-});
-// --- Обработчики кнопок ---
-document.getElementById('btn-history').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'history.html' });
-    window.close();
-});
-document.getElementById('btn-options').addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
-    window.close();
-});
+"use strict";(()=>{var c=(t,e)=>()=>{try{return e||t((e={exports:{}}).exports,e),e.exports}catch(o){throw e=0,o}};var n=c(()=>{chrome.storage.local.get(["selectedTheme"],function(t){let e=t.selectedTheme||"auto";(e==="dark"||e==="auto"&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.documentElement.setAttribute("data-theme","dark")});document.getElementById("btn-history").addEventListener("click",()=>{chrome.tabs.create({url:"history.html"}),window.close()});document.getElementById("btn-options").addEventListener("click",()=>{chrome.runtime.openOptionsPage(),window.close()})});n();})();

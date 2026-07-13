@@ -1,3 +1,4 @@
+import { ICONS } from './icons';
 interface SelectionData {
     text: string;
     context: string;
@@ -668,8 +669,27 @@ function executeRequest(mode: string): void {
                 adjustPopupPosition();
             } else if (response.status === "done") {
                 contentPane.innerHTML = parseMarkdownToHTML(fullResult);
+                // Вставляем финальный результат прямо в поле ввода на странице
+                replaceSelectedTextSafely(fullResult);
+                
                 finishStream();
 
+                
+                const saveToHistorySafe = async (newItem: any) => {
+                    const data = await chrome.storage.local.get({ aiHistory: [] });
+                    let history = data.aiHistory as any[];
+                    
+                    // Добавляем свежий запрос в начало
+                    history.unshift(newItem);
+                    
+                    // СТРОГИЙ ЛИМИТ: Оставляем только 50 последних записей
+                    if (history.length > 50) {
+                        history = history.slice(0, 50);
+                    }
+                    
+                    await chrome.storage.local.set({ aiHistory: history });
+                };
+                
                 // 🔥 СОХРАНЯЕМ В КЭШ
                 const cacheModeKey = mode === 'translate' ? mode + currentTargetLang : mode;
                 getCacheHash(cacheModeKey, currentSelection.text).then(cacheKey => {
@@ -681,15 +701,12 @@ function executeRequest(mode: string): void {
                     id: Date.now(),
                     mode: mode,
                     original: currentSelection.text,
-                    result: fullResult.replace(/\*/g, ''), 
+                    result: fullResult.replace(/\*/g, ''),
                     date: new Date().toISOString()
                 };
-                chrome.storage.local.get({ aiHistory: [] }, (data) => {
-                    const history = data.aiHistory as any[];
-                    history.unshift(historyItem);
-                    if (history.length > 50) history.pop();
-                    chrome.storage.local.set({ aiHistory: history });
-                });
+
+                // Вызываем функцию с лимитом, передавая ей сформированный объект
+                saveToHistorySafe(historyItem);
 
             } else if (response.status === "error") {
                 if (response.error.toLowerCase().includes('rate limit') || response.error.includes('429')) {
@@ -809,6 +826,51 @@ function executeRequest(mode: string): void {
     }
 
     checkCacheAndRun();
+}
+
+
+/**
+ * Умная и безопасная замена выделенного текста.
+ * Поддерживает <input>, <textarea> и <div contenteditable="true">
+ */
+function replaceSelectedTextSafely(newText: string) {
+    const activeEl = document.activeElement as HTMLElement;
+
+    if (!activeEl) return;
+
+    // СЦЕНАРИЙ 1: Стандартные поля ввода (input, textarea)
+    if (activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement) {
+        const start = activeEl.selectionStart || 0;
+        const end = activeEl.selectionEnd || 0;
+
+        // Нативный метод замены текста (сохраняет историю Ctrl+Z браузера)
+        activeEl.setRangeText(newText, start, end, 'end');
+
+        // 🔥 КРИТИЧЕСКИ ВАЖНО: триггерим события, чтобы React/Vue обновили свой state
+        activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+        activeEl.dispatchEvent(new Event('change', { bubbles: true }));
+    } 
+    // СЦЕНАРИЙ 2: Rich-text редакторы (contenteditable)
+    else if (activeEl.isContentEditable) {
+        // Фокусируемся на всякий случай
+        activeEl.focus();
+        
+        // execCommand устарел в стандартах, но это ЕДИНСТВЕННЫЙ рабочий способ 
+        // вставить текст в contenteditable так, чтобы сработали внутренние скрипты сайтов
+        document.execCommand('insertText', false, newText);
+    } 
+    // СЦЕНАРИЙ 3: Обычный текст на странице (если юзер выделил абзац статьи)
+    else {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(document.createTextNode(newText));
+            
+            // Сбрасываем выделение
+            selection.removeAllRanges();
+        }
+    }
 }
 
 function adjustPopupPosition(): void {

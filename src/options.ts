@@ -60,70 +60,57 @@ async function saveOptions(): Promise<void> {
     });
 }
 
-// Функция для восстановления настроек при открытии страницы
-function restoreOptions(): void {
+// Функция для восстановления настроек (Promise-based)
+async function restoreOptions(): Promise<void> {
     const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
     const toneSelect = document.getElementById('toneSelect') as HTMLSelectElement;
     const themeSelect = document.getElementById('themeSelect') as HTMLSelectElement;
     const searchSelect = document.getElementById('searchEngine') as HTMLSelectElement; 
     
-    // Задаем значения по умолчанию, если в памяти еще ничего нет
-    chrome.storage.local.get({
+    const items = await chrome.storage.local.get({
         mistralApiKey: '',
         selectedTone: 'business',
         selectedTheme: 'auto',
         searchEngine: 'google' 
-    }, (items) => {
-        apiKeyInput.value = items.mistralApiKey as string;
-        toneSelect.value = items.selectedTone as string;
-        themeSelect.value = items.selectedTheme as string;
-        searchSelect.value = items.searchEngine as string; 
     });
+    
+    apiKeyInput.value = items.mistralApiKey as string;
+    toneSelect.value = items.selectedTone as string;
+    themeSelect.value = items.selectedTheme as string;
+    searchSelect.value = items.searchEngine as string; 
 }
 
-// Назначаем обработчики событий после загрузки HTML-страницы
-// Назначаем обработчики событий после загрузки HTML-страницы
 document.addEventListener('DOMContentLoaded', () => {
     restoreOptions();
     
-    // Находим кнопку сохранения и вешаем на нее клик
     const saveBtn = document.getElementById('saveBtn') as HTMLButtonElement | null;
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveOptions);
-    }
+    if (saveBtn) saveBtn.addEventListener('click', saveOptions);
 
-    // Автоматическая подстановка версии расширения
     const versionBadge = document.getElementById('app-version');
     if (versionBadge) {
         const manifest = chrome.runtime.getManifest();
         versionBadge.textContent = `v${manifest.version}`;
     }
 
-    // 🔥 ЛОГИКА ДЛЯ ГЛАЗКА ПАРОЛЯ
+    // НОВАЯ ЧИСТАЯ ЛОГИКА ДЛЯ ГЛАЗКА ПАРОЛЯ
     const toggleBtn = document.getElementById('toggleApiKey');
-    const eyeIcon = document.getElementById('eyeIcon');
+    const eyeOpen = document.getElementById('eyeOpen');
+    const eyeClosed = document.getElementById('eyeClosed');
     const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
 
-    if (toggleBtn && eyeIcon && apiKeyInput) {
+    if (toggleBtn && eyeOpen && eyeClosed && apiKeyInput) {
         toggleBtn.addEventListener('click', () => {
-            // Проверяем, какой сейчас тип у поля (скрытый или открытый)
-            const type = apiKeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            apiKeyInput.setAttribute('type', type);
+            const isPassword = apiKeyInput.getAttribute('type') === 'password';
+            apiKeyInput.setAttribute('type', isPassword ? 'text' : 'password');
             
-            // Если текст открыт -> рисуем перечеркнутый глаз
-            if (type === 'text') {
-                eyeIcon.innerHTML = `
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                `;
+            // Переключаем видимость SVG-иконок
+            if (isPassword) {
+                eyeOpen.style.display = 'none';
+                eyeClosed.style.display = 'block';
             } else {
-                // Если скрыт -> рисуем обычный глаз
-                eyeIcon.innerHTML = `
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                `;
+                eyeOpen.style.display = 'block';
+                eyeClosed.style.display = 'none';
             }
         });
     }
-    
 });
