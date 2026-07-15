@@ -110,6 +110,82 @@ function parseMarkdownToHTML(text: string): string {
     return html;
 }
 
+interface TextToken {
+    value: string;
+    significant: boolean;
+}
+
+function tokenizeText(text: string): TextToken[] {
+    const values = text.match(/\s+|[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*|[^\s\p{L}\p{N}]/gu) ?? [];
+    return values.map(value => ({
+        value,
+        significant: !/^\s+$/u.test(value),
+    }));
+}
+
+function normalizeSpellcheckResult(text: string): string {
+    // Убираем разметку старого формата из уже сохраненного кэша.
+    return text
+        .replace(/\*\*([\s\S]*?)\*\*/g, '$1')
+        .replace(/\*\*/g, '');
+}
+
+function renderSpellcheckDiff(original: string, corrected: string): string {
+    const originalTokens = tokenizeText(original);
+    const correctedTokens = tokenizeText(corrected);
+    const originalSignificant = originalTokens.filter(token => token.significant);
+    const correctedSignificant = correctedTokens
+        .map((token, tokenIndex) => ({ ...token, tokenIndex }))
+        .filter(token => token.significant);
+
+    // LCS позволяет корректно находить изменения даже при добавлении или удалении слов.
+    const rows = Array.from(
+        { length: originalSignificant.length + 1 },
+        () => new Uint16Array(correctedSignificant.length + 1),
+    );
+
+    for (let originalIndex = 1; originalIndex <= originalSignificant.length; originalIndex++) {
+        for (let correctedIndex = 1; correctedIndex <= correctedSignificant.length; correctedIndex++) {
+            if (originalSignificant[originalIndex - 1].value === correctedSignificant[correctedIndex - 1].value) {
+                rows[originalIndex][correctedIndex] = rows[originalIndex - 1][correctedIndex - 1] + 1;
+            } else {
+                rows[originalIndex][correctedIndex] = Math.max(
+                    rows[originalIndex - 1][correctedIndex],
+                    rows[originalIndex][correctedIndex - 1],
+                );
+            }
+        }
+    }
+
+    const unchangedTokenIndexes = new Set<number>();
+    let originalIndex = originalSignificant.length;
+    let correctedIndex = correctedSignificant.length;
+
+    while (originalIndex > 0 && correctedIndex > 0) {
+        if (originalSignificant[originalIndex - 1].value === correctedSignificant[correctedIndex - 1].value) {
+            unchangedTokenIndexes.add(correctedSignificant[correctedIndex - 1].tokenIndex);
+            originalIndex--;
+            correctedIndex--;
+        } else if (rows[originalIndex - 1][correctedIndex] >= rows[originalIndex][correctedIndex - 1]) {
+            originalIndex--;
+        } else {
+            correctedIndex--;
+        }
+    }
+
+    return correctedTokens.map((token, tokenIndex) => {
+        const escaped = token.value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>');
+
+        return token.significant && !unchangedTokenIndexes.has(tokenIndex)
+            ? `<mark>${escaped}</mark>`
+            : escaped;
+    }).join('');
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "contextMenuClicked") {
         saveSelectionState(request.text);
@@ -722,7 +798,12 @@ function executeRequest(mode: string): void {
                 adjustPopupPosition();
 
             } else if (response.status === "done") {
-                contentPane.innerHTML = parseMarkdownToHTML(fullResult);
+                if (mode === 'spellcheck') {
+                    fullResult = normalizeSpellcheckResult(fullResult);
+                    contentPane.innerHTML = renderSpellcheckDiff(currentSelection.text, fullResult);
+                } else {
+                    contentPane.innerHTML = parseMarkdownToHTML(fullResult);
+                }
                 finishStream();
 
                 
@@ -878,8 +959,12 @@ function executeRequest(mode: string): void {
             
             const cachedResult = await getCachedText(cacheKey);
             if (cachedResult) {
-                fullResult = cachedResult;
-                const finalHtml = parseMarkdownToHTML(fullResult);
+                fullResult = mode === 'spellcheck'
+                    ? normalizeSpellcheckResult(cachedResult)
+                    : cachedResult;
+                const finalHtml = mode === 'spellcheck'
+                    ? renderSpellcheckDiff(currentSelection.text, fullResult)
+                    : parseMarkdownToHTML(fullResult);
                 contentPane.innerHTML = finalHtml;
                 finishStream(true);
             } else {

@@ -69,6 +69,31 @@ test('Сборки Chrome и Firefox используют совместимые
   expect(chromeManifest.permissions).not.toContain('scripting');
 });
 
+test('Проверка ошибок подсвечивает только исправленные слова', async ({ page, context }) => {
+  await setFakeApiKey(context);
+  await page.goto('https://example.com');
+
+  await context.route('https://api.mistral.ai/v1/chat/completions', async (route) => {
+    const mockStreamData = `data: {"choices":[{"delta":{"content":"Пишу кот для проверки."}}]}\n\ndata: [DONE]\n\n`;
+    await route.fulfill({ status: 200, contentType: 'text/event-stream', body: mockStreamData });
+  });
+
+  await page.evaluate(() => {
+    const textarea = document.createElement('textarea');
+    textarea.id = 'spellcheck-input';
+    textarea.value = 'Пишуу кот для провирки.';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.setSelectionRange(0, textarea.value.length);
+  });
+
+  await page.keyboard.press('Alt+r');
+
+  const uiPanel = page.locator('#gemini-extension-ui');
+  await expect(uiPanel).toContainText('Пишу кот для проверки.', { timeout: 5000 });
+  await expect(uiPanel.locator('mark')).toHaveText(['Пишу', 'проверки']);
+});
+
 test('Кейс 3: Мультимодальный OCR (Alt+S) и буфер обмена', async ({ page, context }) => {
     await setFakeApiKey(context);
     await page.waitForTimeout(300);
