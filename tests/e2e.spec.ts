@@ -62,7 +62,6 @@ async function grantSiteAccess(context: BrowserContext, page: Page): Promise<num
     return tabs[0]?.id;
   });
   expect(tabId).toBeTruthy();
-  await expect.poll(() => background.evaluate((origin) => chrome.permissions.contains({ origins: [origin] }), `${new URL(page.url()).origin}/*`)).toBe(true);
   const alreadyInjected = await background.evaluate(async (id) => {
     try { return (await chrome.tabs.sendMessage(id, { action: 'lexisyncPing' }))?.ok === true; } catch { return false; }
   }, tabId!);
@@ -90,9 +89,28 @@ test('Сборки Chrome и Firefox используют совместимые
   expect(firefoxManifest.browser_specific_settings.gecko.id).toBe('lexisync@kiryuhak.dev');
   expect(chromeManifest.permissions).toContain('clipboardWrite');
   expect(chromeManifest.permissions).toContain('scripting');
-  expect(chromeManifest.optional_host_permissions).toEqual(['http://*/*', 'https://*/*']);
-  expect(chromeManifest.content_scripts).toBeUndefined();
+  expect(chromeManifest.optional_host_permissions).toBeUndefined();
+  expect(chromeManifest.content_scripts[0].matches).toEqual(['http://*/*', 'https://*/*']);
   expect(await fs.readFile(path.resolve(__dirname, '../.output/chrome-mv3/inject.js'), 'utf8')).toContain('lexisyncPing');
+});
+
+test('Панель выделения появляется автоматически и показывает SVG-иконки', async ({ page, context }) => {
+  await page.goto('https://example.com');
+  let [background] = context.serviceWorkers();
+  if (!background) background = await context.waitForEvent('serviceworker');
+  const tabId = await background.evaluate(async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id);
+  await expect.poll(() => background.evaluate(async (id) => {
+    try { return (await chrome.tabs.sendMessage(id!, { action: 'lexisyncPing' }))?.ok === true; } catch { return false; }
+  }, tabId)).toBe(true);
+
+  await selectTextOnPage(page, 'h1');
+  await page.locator('h1').dispatchEvent('mouseup', { button: 0, clientX: 180, clientY: 90 });
+  const toolbar = page.getByRole('toolbar', { name: 'Действия с выделенным текстом' });
+  await expect(toolbar).toBeVisible();
+  const icons = toolbar.locator('svg');
+  expect(await icons.count()).toBeGreaterThanOrEqual(5);
+  expect(await icons.evaluateAll((nodes) => nodes.every((node) => node.namespaceURI === 'http://www.w3.org/2000/svg'))).toBe(true);
+  expect(await toolbar.locator('svg path, svg line, svg rect, svg circle, svg polyline').count()).toBeGreaterThan(0);
 });
 
 test('Проверка ошибок подсвечивает только исправленные слова', async ({ page, context }) => {
@@ -120,6 +138,8 @@ test('Проверка ошибок подсвечивает только исп
   await expect(uiPanel).toContainText('Пишу кот для проверки.', { timeout: 5000 });
   await expect(uiPanel.locator('mark')).toHaveText(['Пишу', 'проверки']);
   await expect(page.locator('#lexisync-shadow-host')).toHaveCount(1);
+  await expect(uiPanel.getByRole('button', { name: 'Закрыть панель' }).locator('svg line')).toHaveCount(2);
+  await expect(uiPanel.getByRole('button', { name: 'Копировать' }).locator('svg rect')).toHaveCount(1);
 
   // Отклоняем первое исправление и применяем остальные.
   await uiPanel.locator('mark').first().click();

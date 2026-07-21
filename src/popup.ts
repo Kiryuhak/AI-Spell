@@ -1,6 +1,5 @@
 import { isSiteDisabled, normalizeDisabledSites } from './privacy';
 import { localizeDocument } from './i18n';
-import { getOriginPattern } from './site-access';
 
 type Theme = 'auto' | 'light' | 'dark';
 
@@ -70,8 +69,6 @@ async function initializeSiteControls(): Promise<void> {
     if (!['http:', 'https:'].includes(url.protocol)) return;
 
     const hostname = url.hostname.toLowerCase();
-    const originPattern = getOriginPattern(url.href);
-    if (!originPattern || activeTab.id === undefined) return;
     const siteCard = document.getElementById('site-card');
     const siteSummary = document.getElementById('site-summary') as HTMLButtonElement | null;
     const domainLabel = document.getElementById('site-domain');
@@ -90,9 +87,7 @@ async function initializeSiteControls(): Promise<void> {
         blockedSites: [],
     });
     domainLabel.textContent = hostname;
-    const hasPersistentAccess = await chrome.permissions.contains({ origins: [originPattern] });
-    enabledInput.checked = hasPersistentAccess && !isSiteDisabled(hostname, normalizeDisabledSites(stored.blockedSites));
-    suggestionsInput.disabled = !enabledInput.checked;
+    enabledInput.checked = !isSiteDisabled(hostname, normalizeDisabledSites(stored.blockedSites));
     suggestionsInput.checked = stored.adaptiveSuggestionsEnabled === true
         && !isSiteDisabled(hostname, normalizeDisabledSites(stored.adaptiveDisabledSites));
     historyInput.checked = !isSiteDisabled(hostname, normalizeDisabledSites(stored.disabledSites));
@@ -106,42 +101,11 @@ async function initializeSiteControls(): Promise<void> {
     });
 
     enabledInput.addEventListener('change', async () => {
-        if (enabledInput.checked) {
-            const granted = await chrome.permissions.request({ origins: [originPattern] });
-            if (!granted) {
-                enabledInput.checked = false;
-                return;
-            }
-            const current = await chrome.storage.local.get({ blockedSites: [] });
-            await chrome.storage.local.set({ blockedSites: updateSiteList(current.blockedSites, hostname, true) });
-            await chrome.runtime.sendMessage({ action: 'siteAccessChanged', tabId: activeTab.id, enabled: true });
-            suggestionsInput.disabled = false;
-        } else {
-            try {
-                await chrome.tabs.sendMessage(activeTab.id!, { action: 'setSiteEnabled', enabled: false });
-            } catch {
-                // Страница могла ещё не содержать сценарий LexiSync.
-            }
-            const current = await chrome.storage.local.get({ blockedSites: [] });
-            await chrome.storage.local.set({ blockedSites: updateSiteList(current.blockedSites, hostname, false) });
-            await chrome.permissions.remove({ origins: [originPattern] });
-            suggestionsInput.disabled = true;
-        }
+        const current = await chrome.storage.local.get({ blockedSites: [] });
+        await chrome.storage.local.set({ blockedSites: updateSiteList(current.blockedSites, hostname, enabledInput.checked) });
     });
 
     suggestionsInput.addEventListener('change', async () => {
-        if (suggestionsInput.checked && !enabledInput.checked) {
-            const granted = await chrome.permissions.request({ origins: [originPattern] });
-            if (!granted) {
-                suggestionsInput.checked = false;
-                return;
-            }
-            enabledInput.checked = true;
-            suggestionsInput.disabled = false;
-            const blocked = await chrome.storage.local.get({ blockedSites: [] });
-            await chrome.storage.local.set({ blockedSites: updateSiteList(blocked.blockedSites, hostname, true) });
-            await chrome.runtime.sendMessage({ action: 'siteAccessChanged', tabId: activeTab.id, enabled: true });
-        }
         const current = await chrome.storage.local.get({ adaptiveSuggestionsEnabled: false, adaptiveDisabledSites: [] });
         await chrome.storage.local.set({
             adaptiveSuggestionsEnabled: suggestionsInput.checked ? true : current.adaptiveSuggestionsEnabled,

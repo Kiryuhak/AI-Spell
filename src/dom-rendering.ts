@@ -1,10 +1,12 @@
 const FORBIDDEN_SVG_ELEMENTS = new Set(['script', 'foreignObject', 'iframe', 'object', 'embed']);
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
 export function createSvgIcon(markup: string): SVGElement {
-    const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
+    const namespacedMarkup = markup.replace(/<svg\b(?![^>]*\bxmlns=)/i, `<svg xmlns="${SVG_NAMESPACE}"`);
+    const parsed = new DOMParser().parseFromString(namespacedMarkup, 'image/svg+xml');
     const root = parsed.documentElement;
     if (root.localName !== 'svg' || root.querySelector('parsererror')) {
-        const fallback = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const fallback = document.createElementNS(SVG_NAMESPACE, 'svg');
         fallback.setAttribute('viewBox', '0 0 24 24');
         return fallback;
     }

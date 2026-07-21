@@ -1302,6 +1302,7 @@ function executeRequest(mode: RequestMode, customCommand?: CustomCommand): void 
             const copyBtn = document.createElement('button');
             copyBtn.type = 'button'; 
             copyBtn.className = `${btnClass} lexisync-result-button icon-only`;
+            copyBtn.setAttribute('aria-label', t('copy', 'Копировать'));
             setIcon(copyBtn, copyIcon);
             copyBtn.onclick = (e) => {
                 e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(getEffectiveResult());

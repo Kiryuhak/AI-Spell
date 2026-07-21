@@ -10,29 +10,9 @@ export function getOriginPattern(urlValue: string): string | null {
     }
 }
 
-async function grantedWebOrigins(): Promise<string[]> {
-    const permissions = await chrome.permissions.getAll();
-    return [...new Set((permissions.origins || []).filter((origin) => /^https?:\/\//.test(origin) && !origin.includes('api.mistral.ai/')))].sort();
-}
-
 export async function syncRegisteredSiteScripts(): Promise<void> {
-    const matches = await grantedWebOrigins();
     const registered = await chrome.scripting.getRegisteredContentScripts({ ids: [REGISTERED_SCRIPT_ID] });
-    if (!matches.length) {
-        if (registered.length) await chrome.scripting.unregisterContentScripts({ ids: [REGISTERED_SCRIPT_ID] });
-        return;
-    }
-    const definition: chrome.scripting.RegisteredContentScript = {
-        id: REGISTERED_SCRIPT_ID,
-        matches,
-        js: [INJECT_SCRIPT_FILE],
-        runAt: 'document_idle',
-        allFrames: true,
-        matchOriginAsFallback: true,
-        persistAcrossSessions: true,
-    };
-    if (registered.length) await chrome.scripting.updateContentScripts([definition]);
-    else await chrome.scripting.registerContentScripts([definition]);
+    if (registered.length) await chrome.scripting.unregisterContentScripts({ ids: [REGISTERED_SCRIPT_ID] });
 }
 
 async function contentScriptIsReady(tabId: number, frameId?: number): Promise<boolean> {
@@ -58,7 +38,5 @@ export async function sendToTabWithInjection(tabId: number, message: unknown, fr
 }
 
 export function initializeSiteAccess(): void {
-    void syncRegisteredSiteScripts().catch((error) => console.error('Не удалось восстановить доступ LexiSync к сайтам:', error));
-    chrome.permissions.onAdded.addListener(() => void syncRegisteredSiteScripts());
-    chrome.permissions.onRemoved.addListener(() => void syncRegisteredSiteScripts());
+    void syncRegisteredSiteScripts().catch((error) => console.error('Не удалось обновить сценарии LexiSync:', error));
 }
