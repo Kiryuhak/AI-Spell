@@ -143,6 +143,11 @@
     "appearanceHint": { "message": "Scale applies to the selection toolbar, AI menu, and result window." },
     "compactResultMode": { "message": "Compact result" },
     "compactResultModeHint": { "message": "Show only the finished text and replace and copy buttons." },
+    "compactResultPreviewTitle": { "message": "Compact result preview" },
+    "compactResultPreviewAria": { "message": "Compact result example" },
+    "compactResultPreviewBefore": { "message": "Finished text without " },
+    "compactResultPreviewCorrection": { "message": "errors" },
+    "compactResultPreviewAfter": { "message": "." },
     "searchEngineLabel": { "message": "Search engine:" },
     "sendContextLong": { "message": "Share page context with Mistral" },
     "sendContextHint": {

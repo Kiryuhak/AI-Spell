@@ -585,7 +585,11 @@ test('Компактный режим настраивается и показы
 
     await page.goto(`chrome-extension://${extensionId}/options.html`);
     await page.locator('[data-tab="appearance"]').click();
+    const compactPreview = page.locator('#compactResultPreviewStage');
+    await expect(compactPreview).toBeVisible();
+    await expect(compactPreview.locator('mark')).toContainText('ошибок');
     await page.locator('#compactResultMode').check();
+    await expect(compactPreview).toHaveAttribute('data-enabled', 'true');
     await page.locator('#saveBtn').click();
     await expect
         .poll(() => background.evaluate(() => chrome.storage.local.get('compactResultMode')))
@@ -597,7 +601,7 @@ test('Компактный режим настраивается и показы
         await route.fulfill({
             status: 200,
             contentType: 'text/event-stream',
-            body: 'data: {"choices":[{"delta":{"content":"Готовый компактный текст"}}]}\n\ndata: [DONE]\n\n',
+            body: 'data: {"choices":[{"delta":{"content":"Sample Domai"}}]}\n\ndata: [DONE]\n\n',
         });
     });
     await page.goto('https://example.com');
@@ -606,11 +610,25 @@ test('Компактный режим настраивается и показы
     await page.keyboard.press('Alt+r');
 
     const panel = page.locator('#lexisync-extension-ui');
-    await expect(panel.locator('.lexisync-content-pane')).toHaveText('Готовый компактный текст');
+    await expect(panel.locator('.lexisync-content-pane')).toHaveText('Sample Domai');
     await expect(panel.locator('.lexisync-result-button')).toHaveCount(2);
     await expect(panel.locator('.lexisync-corrections')).toBeHidden();
     await expect(panel.locator('.lexisync-result-tools')).toBeHidden();
-    await expect(panel.locator('mark')).toHaveCount(0);
+    await expect(panel.locator('.lexisync-content-pane mark').first()).toBeVisible();
+    await expect(panel.locator('.lexisync-content-pane mark[aria-label^="Удалено:"]')).toHaveCount(0);
+    const compactLayout = await panel.evaluate((element) => {
+        const content = element.querySelector<HTMLElement>('.lexisync-content-pane');
+        return {
+            compact: element.dataset.compactResult,
+            width: Number.parseFloat(getComputedStyle(element).width),
+            height: element.getBoundingClientRect().height,
+            contentBackground: content ? getComputedStyle(content).backgroundColor : '',
+        };
+    });
+    expect(compactLayout.compact).toBe('true');
+    expect(compactLayout.width).toBe(340);
+    expect(compactLayout.height).toBeLessThan(280);
+    expect(compactLayout.contentBackground).not.toBe('rgba(0, 0, 0, 0)');
 });
 
 test('Страницы расширения проходят автоматический accessibility-аудит', async ({ page, context }) => {

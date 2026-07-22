@@ -257,6 +257,144 @@ textarea {
     border: 1px solid var(--box-border);
     border-radius: 12px;
 }
+.compact-preview-panel {
+    padding: 16px;
+    margin: 0 0 20px;
+    background: var(--box-bg);
+    border: 1px solid var(--box-border);
+    border-radius: 12px;
+}
+.compact-preview-panel h2 {
+    margin: 0 0 12px;
+    color: var(--text-main);
+    font-size: 14px;
+}
+.compact-result-preview-stage {
+    position: relative;
+    display: grid;
+    min-height: 230px;
+    place-items: center;
+    overflow: hidden;
+    background: #f6f8fc;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+}
+.compact-result-preview-stage::before {
+    position: absolute;
+    inset: 18px 20px;
+    content: '';
+    opacity: 0.42;
+    background: repeating-linear-gradient(to bottom, #c7ceda 0 4px, transparent 4px 17px);
+}
+.compact-result-preview-card {
+    --result-bg: rgba(248, 250, 255, 0.9);
+    --result-inner: rgba(255, 255, 255, 0.78);
+    --result-text: #1c2438;
+    --result-muted: #69738d;
+    --result-border: rgba(83, 91, 126, 0.13);
+    position: relative;
+    z-index: 1;
+    width: min(340px, calc(100% - 24px));
+    overflow: hidden;
+    color: var(--result-text);
+    background: var(--result-bg);
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    border-radius: 18px;
+    box-shadow: 0 16px 38px rgba(38, 40, 72, 0.2);
+    transform-origin: center;
+    transition:
+        transform 0.18s ease,
+        background 0.2s ease;
+}
+.compact-result-preview-header {
+    display: flex;
+    min-height: 48px;
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 13px;
+    background: linear-gradient(135deg, rgba(109, 92, 231, 0.12), transparent 65%);
+    border-bottom: 1px solid var(--result-border);
+    font-size: 13px;
+}
+.compact-result-preview-close {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    color: var(--result-muted);
+    border: 2px solid currentColor;
+    border-radius: 8px;
+    font-size: 20px;
+    line-height: 1;
+}
+.compact-result-preview-content {
+    min-height: 42px;
+    margin: 10px 12px;
+    padding: 12px;
+    background: var(--result-inner);
+    border: 1px solid var(--result-border);
+    border-radius: 11px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.compact-result-preview-content mark {
+    padding: 2px 4px;
+    color: #166534;
+    background: #dcfce7;
+    border-radius: 4px;
+    font-weight: 600;
+}
+.compact-result-preview-actions {
+    display: flex;
+    gap: 9px;
+    padding: 0 12px 13px;
+}
+.compact-result-preview-replace,
+.compact-result-preview-copy {
+    display: flex;
+    height: 36px;
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 650;
+}
+.compact-result-preview-replace {
+    gap: 7px;
+    padding: 0 15px;
+    color: #fff;
+    background: linear-gradient(135deg, #6d5ce7, #5947d2);
+    box-shadow: 0 7px 16px rgba(109, 92, 231, 0.25);
+}
+.compact-result-preview-copy {
+    width: 36px;
+    color: var(--result-text);
+    background: var(--result-inner);
+    border: 1px solid var(--result-border);
+    font-size: 17px;
+}
+.compact-result-preview-stage[data-theme='dark'] {
+    background: #171b2b;
+    border-color: #373d58;
+}
+.compact-result-preview-stage[data-theme='dark']::before {
+    background: repeating-linear-gradient(to bottom, #66708a 0 4px, transparent 4px 17px);
+}
+.compact-result-preview-stage[data-theme='dark'] .compact-result-preview-card {
+    --result-bg: rgba(27, 30, 49, 0.94);
+    --result-inner: rgba(49, 54, 82, 0.8);
+    --result-text: #f5f6fc;
+    --result-muted: #abb4ce;
+    --result-border: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+}
+.compact-result-preview-stage[data-theme='dark'] .compact-result-preview-content mark {
+    color: #c4eed0;
+    background: #0f5223;
+}
 .range-header {
     display: flex;
     align-items: center;

@@ -134,6 +134,7 @@ export function renderSpellcheckDiffFragment(
     original: string,
     corrected: string,
     rejected = new Set<number>(),
+    options: { showDeletionMarkers?: boolean } = {},
 ): DocumentFragment {
     const fragment = document.createDocumentFragment();
     const appendText = (container: Node, value: string) => {
@@ -153,14 +154,14 @@ export function renderSpellcheckDiffFragment(
             const mark = document.createElement('mark');
             mark.dataset.tokenIndex = String(correction.tokenIndex);
             if (correction.corrected) appendText(mark, correction.corrected);
-            else {
+            else if (options.showDeletionMarkers !== false) {
                 mark.appendChild(document.createTextNode('\u200b'));
                 mark.title = `Удалено: ${correction.original.trim()}`;
                 mark.setAttribute('aria-label', mark.title);
                 mark.style.cssText =
                     'display:inline-block;min-width:0.45em;border-left:2px solid currentColor;vertical-align:text-bottom;';
             }
-            fragment.appendChild(mark);
+            if (correction.corrected || options.showDeletionMarkers !== false) fragment.appendChild(mark);
         }
         cursor = correction.end;
     }

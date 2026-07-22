@@ -20,7 +20,20 @@ function updateAppearancePreview(): void {
     const scaleValue = document.getElementById('interfaceScaleValue') as HTMLOutputElement | null;
     const previewStage = document.getElementById('interfacePreview');
     const previewToolbar = document.getElementById('previewToolbar');
-    if (!themeSelect || !scaleInput || !scaleValue || !previewStage || !previewToolbar) return;
+    const compactResultModeInput = document.getElementById('compactResultMode') as HTMLInputElement | null;
+    const compactPreviewStage = document.getElementById('compactResultPreviewStage');
+    const compactResultPreview = document.getElementById('compactResultPreview');
+    if (
+        !themeSelect ||
+        !scaleInput ||
+        !scaleValue ||
+        !previewStage ||
+        !previewToolbar ||
+        !compactResultModeInput ||
+        !compactPreviewStage ||
+        !compactResultPreview
+    )
+        return;
 
     const scale = clampInterfaceScale(Number(scaleInput.value) || 90);
     const theme = themeSelect.value as AppearanceTheme;
@@ -30,7 +43,10 @@ function updateAppearancePreview(): void {
     scaleValue.value = `${scale}%`;
     scaleValue.textContent = `${scale}%`;
     previewToolbar.style.transform = `scale(${scale / 100})`;
+    compactResultPreview.style.transform = `scale(${scale / 100})`;
     previewStage.dataset.theme = isDark ? 'dark' : 'light';
+    compactPreviewStage.dataset.theme = isDark ? 'dark' : 'light';
+    compactPreviewStage.dataset.enabled = String(compactResultModeInput.checked);
     document.documentElement.toggleAttribute('data-theme', isDark);
 }
 
@@ -298,9 +314,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const themeSelect = document.getElementById('themeSelect');
     const interfaceScaleInput = document.getElementById('interfaceScale');
+    const compactResultModeInput = document.getElementById('compactResultMode');
     const adaptiveSuggestionsInput = document.getElementById('adaptiveSuggestionsEnabled');
     themeSelect?.addEventListener('change', updateAppearancePreview);
     interfaceScaleInput?.addEventListener('input', updateAppearancePreview);
+    compactResultModeInput?.addEventListener('change', updateAppearancePreview);
     adaptiveSuggestionsInput?.addEventListener('change', updateAdaptiveControls);
     setupCustomCommandSettings();
     setupStyleProfileSettings();

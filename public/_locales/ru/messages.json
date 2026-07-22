@@ -143,6 +143,11 @@
     "appearanceHint": { "message": "Масштаб применяется к панели выделения, AI-меню и окну результата." },
     "compactResultMode": { "message": "Компактный результат" },
     "compactResultModeHint": { "message": "Показывать только готовый текст и кнопки замены и копирования." },
+    "compactResultPreviewTitle": { "message": "Предпросмотр компактного результата" },
+    "compactResultPreviewAria": { "message": "Пример компактного результата" },
+    "compactResultPreviewBefore": { "message": "Готовый текст без " },
+    "compactResultPreviewCorrection": { "message": "ошибок" },
+    "compactResultPreviewAfter": { "message": "." },
     "searchEngineLabel": { "message": "Поисковая система:" },
     "sendContextLong": { "message": "Передавать контекст страницы в Mistral" },
     "sendContextHint": {

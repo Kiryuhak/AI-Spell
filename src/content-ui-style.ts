@@ -215,6 +215,20 @@ export const POPUP_STYLE_TEXT = `
                 box-shadow: 0 0 0 3px var(--primary-soft);
             }
             .lexisync-corrections { padding: 0 14px 12px !important; }
+            #lexisync-extension-ui[data-compact-result="true"] .lexisync-corrections,
+            #lexisync-extension-ui[data-compact-result="true"] .lexisync-result-tools {
+                display: none !important;
+            }
+            #lexisync-extension-ui[data-compact-result="true"] .lexisync-content-pane {
+                margin: 10px 12px !important;
+                padding: 12px !important;
+                background: var(--bg-secondary) !important;
+                border: 1px solid var(--inner-border) !important;
+                border-radius: 11px !important;
+            }
+            #lexisync-extension-ui[data-compact-result="true"] .lexisync-actions {
+                padding: 0 14px 14px !important;
+            }
             .lexisync-correction-row {
                 background: var(--bg-secondary);
                 border-color: var(--inner-border) !important;

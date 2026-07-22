@@ -255,6 +255,27 @@ export function executeRequest(
     let wordCorrections: WordCorrection[] = [];
     const rejectedCorrections = new Set<number>();
 
+    function applyCompactResultLayout(): void {
+        const currentPopup = context.getPopup();
+        if (currentPopup) {
+            currentPopup.dataset.compactResult = 'true';
+            currentPopup.style.width = '340px';
+        }
+        contentPane.style.margin = '10px 12px';
+        contentPane.style.padding = '12px';
+        contentPane.style.minHeight = '36px';
+        contentPane.style.maxHeight = '36vh';
+        contentPane.style.background = 'var(--bg-secondary)';
+        contentPane.style.border = '1px solid var(--inner-border)';
+        contentPane.style.borderRadius = '11px';
+        correctionsContainer.replaceChildren();
+        correctionsContainer.hidden = true;
+        correctionsContainer.style.display = 'none';
+        resultTools.replaceChildren();
+        resultTools.hidden = true;
+        resultTools.style.display = 'none';
+    }
+
     function getCacheSource(): string {
         return serializeCacheSource({
             text: currentSelection.text,
@@ -448,8 +469,13 @@ export function executeRequest(
             } else if (response.status === 'done') {
                 if (mode === 'spellcheck') {
                     fullResult = normalizeSpellcheckResult(fullResult);
-                    if (compactResultMode) contentPane.textContent = fullResult;
-                    else {
+                    if (compactResultMode) {
+                        contentPane.replaceChildren(
+                            renderSpellcheckDiffFragment(currentSelection.text, fullResult, new Set(), {
+                                showDeletionMarkers: false,
+                            }),
+                        );
+                    } else {
                         wordCorrections = getWordCorrections(currentSelection.text, fullResult);
                         refreshSpellcheck();
                     }
@@ -654,7 +680,11 @@ export function executeRequest(
     }
 
     async function checkCacheAndRun() {
-        const res = (await chrome.runtime.sendMessage({ action: 'getRuntimeSettings' })) as {
+        const [runtimeSettings, appearanceSettings] = await Promise.all([
+            chrome.runtime.sendMessage({ action: 'getRuntimeSettings' }),
+            chrome.storage.local.get({ compactResultMode: false }),
+        ]);
+        const res = runtimeSettings as {
             hasApiKey?: boolean;
             sendPageContext?: boolean;
             contextDisabledSites?: unknown;
@@ -662,17 +692,8 @@ export function executeRequest(
             compactResultMode?: boolean;
         };
         if (lifecycle.disposed) return;
-        compactResultMode = res.compactResultMode === true;
-        if (compactResultMode) {
-            const currentPopup = context.getPopup();
-            if (currentPopup) {
-                currentPopup.dataset.compactResult = 'true';
-                currentPopup.style.width = '300px';
-            }
-            contentPane.style.padding = '12px 14px';
-            contentPane.style.minHeight = '36px';
-            contentPane.style.maxHeight = '36vh';
-        }
+        compactResultMode = appearanceSettings.compactResultMode === true || res.compactResultMode === true;
+        if (compactResultMode) applyCompactResultLayout();
         usePageContext =
             res.sendPageContext === true &&
             !isSiteDisabled(location.hostname, normalizeDisabledSites(res.contextDisabledSites));
@@ -745,7 +766,13 @@ export function executeRequest(
         if (cachedResult) {
             void recordCacheHit();
             fullResult = mode === 'spellcheck' ? normalizeSpellcheckResult(cachedResult) : cachedResult;
-            if (compactResultMode) {
+            if (compactResultMode && mode === 'spellcheck') {
+                contentPane.replaceChildren(
+                    renderSpellcheckDiffFragment(currentSelection.text, fullResult, new Set(), {
+                        showDeletionMarkers: false,
+                    }),
+                );
+            } else if (compactResultMode) {
                 contentPane.textContent = fullResult;
             } else if (mode === 'spellcheck') {
                 wordCorrections = getWordCorrections(currentSelection.text, fullResult);
