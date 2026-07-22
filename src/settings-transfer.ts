@@ -4,6 +4,7 @@ const PORTABLE_SETTING_KEYS = [
     'selectedTone',
     'selectedTheme',
     'interfaceScale',
+    'compactResultMode',
     'searchEngine',
     'sendPageContext',
     'historyEnabled',
@@ -27,6 +28,7 @@ const SYNC_SETTING_KEYS = [
     'selectedTone',
     'selectedTheme',
     'interfaceScale',
+    'compactResultMode',
     'searchEngine',
     'historyEnabled',
     'historyRetentionDays',
@@ -53,7 +55,15 @@ function stringList(value: unknown, limit: number, itemLength: number): string[]
 }
 
 function sanitizePortableSetting(key: (typeof PORTABLE_SETTING_KEYS)[number], value: unknown): unknown {
-    if (['sendPageContext', 'historyEnabled', 'adaptiveSuggestionsEnabled', 'adaptiveLearningEnabled'].includes(key))
+    if (
+        [
+            'compactResultMode',
+            'sendPageContext',
+            'historyEnabled',
+            'adaptiveSuggestionsEnabled',
+            'adaptiveLearningEnabled',
+        ].includes(key)
+    )
         return value === true;
     if (key === 'selectedTone')
         return ['business', 'friendly', 'persuasive', 'creative'].includes(String(value)) ? value : 'business';

@@ -8,6 +8,7 @@ import {
     type AdaptiveLanguageModel,
     type AdaptiveMutation,
 } from './adaptive-model-store';
+import { addAdaptiveBlockedWord } from './settings-store';
 
 export type { AdaptiveLanguageModel } from './adaptive-model-store';
 
@@ -318,8 +319,7 @@ async function blockSelectedSuggestion(): Promise<void> {
     if (!suggestion) return;
     const normalized = normalizeWord(suggestion);
     if (!settings.blockedWords.some((word) => normalizeWord(word) === normalized)) {
-        settings.blockedWords.push(normalized);
-        await chrome.storage.local.set({ adaptiveBlockedWords: settings.blockedWords });
+        settings.blockedWords = await addAdaptiveBlockedWord(normalized);
     }
     hideSuggestions();
 }

@@ -1,6 +1,7 @@
 const REGISTERED_SCRIPT_ID = 'lexisync-enabled-sites';
 const INJECT_SCRIPT_FILE = 'inject.js';
 let scriptSyncQueue: Promise<void> = Promise.resolve();
+const tabInjectionQueues = new Map<number, Promise<void>>();
 
 export function getOriginPattern(urlValue: string): string | null {
     try {
@@ -55,11 +56,23 @@ async function contentScriptIsReady(tabId: number, frameId?: number): Promise<bo
 }
 
 export async function ensureContentScript(tabId: number, frameId?: number): Promise<void> {
-    if (await contentScriptIsReady(tabId, frameId)) return;
-    await chrome.scripting.executeScript({
-        target: frameId === undefined ? { tabId, allFrames: true } : { tabId, frameIds: [frameId] },
-        files: [INJECT_SCRIPT_FILE],
-    });
+    const previous = tabInjectionQueues.get(tabId) ?? Promise.resolve();
+    const injection = previous
+        .catch(() => undefined)
+        .then(async () => {
+            if (await contentScriptIsReady(tabId, frameId)) return;
+            await chrome.scripting.executeScript({
+                target: frameId === undefined ? { tabId, allFrames: true } : { tabId, frameIds: [frameId] },
+                files: [INJECT_SCRIPT_FILE],
+            });
+            if (!(await contentScriptIsReady(tabId, frameId))) throw new Error('CONTENT_SCRIPT_NOT_READY');
+        });
+    tabInjectionQueues.set(tabId, injection);
+    try {
+        await injection;
+    } finally {
+        if (tabInjectionQueues.get(tabId) === injection) tabInjectionQueues.delete(tabId);
+    }
 }
 
 export async function sendToTabWithInjection(tabId: number, message: unknown, frameId?: number): Promise<unknown> {

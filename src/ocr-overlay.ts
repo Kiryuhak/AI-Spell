@@ -5,7 +5,11 @@ export interface OcrOverlayOptions {
     onImage: (imageUrl: string, rect: DOMRect) => void;
 }
 
-export function initializeOcrOverlay(options: OcrOverlayOptions): void {
+export interface OcrOverlayController {
+    open: (screenshotUrl: string) => void;
+}
+
+export function initializeOcrOverlay(options: OcrOverlayOptions): OcrOverlayController {
     let overlay: HTMLDivElement | null = null;
     let selection: HTMLDivElement | null = null;
     let startX = 0;
@@ -90,9 +94,11 @@ export function initializeOcrOverlay(options: OcrOverlayOptions): void {
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && overlay) close();
     });
-    chrome.runtime.onMessage.addListener((request) => {
-        if (!options.isEnabled() || request.action !== 'startOcrMode') return;
-        screenshotDataUrl = typeof request.screenshotUrl === 'string' ? request.screenshotUrl : '';
-        if (screenshotDataUrl) open();
-    });
+    return {
+        open: (screenshotUrl) => {
+            if (!options.isEnabled()) return;
+            screenshotDataUrl = screenshotUrl;
+            if (screenshotDataUrl) open();
+        },
+    };
 }

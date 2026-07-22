@@ -7,6 +7,7 @@ import { applyHistoryMutation, type HistoryMutation } from './history-store';
 import { applyCacheMutation, type CacheMutation } from './ai-cache';
 import { applyAdaptiveMutation, type AdaptiveMutation } from './adaptive-model-store';
 import { createSettingsFingerprint } from './request-cache';
+import { applySettingsMutation, type SettingsMutation } from './settings-store';
 import { initializeSettingsSync, restoreSyncedSettings } from './settings-transfer';
 import { processOcr, streamText, type MistralRequest } from './mistral-client';
 import { resolveStyleProfile } from './site-profiles';
@@ -137,6 +138,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     glossary: [],
                     styleProfiles: [],
                     activeStyleProfileId: '',
+                    compactResultMode: false,
                 }),
             )
             .then((settings) => {
@@ -152,6 +154,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     hasApiKey: typeof settings.mistralApiKey === 'string' && settings.mistralApiKey.trim().length > 0,
                     sendPageContext: settings.sendPageContext === true,
                     contextDisabledSites: settings.contextDisabledSites,
+                    compactResultMode: settings.compactResultMode === true,
                     activeStyleProfileName: profile?.name || '',
                     cacheFingerprint: createSettingsFingerprint({
                         aiMode: settings.aiMode,
@@ -173,10 +176,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (request.domain === 'cache') return applyCacheMutation(request.mutation as CacheMutation, payload);
             if (request.domain === 'adaptive')
                 return applyAdaptiveMutation(request.mutation as AdaptiveMutation, payload);
+            if (request.domain === 'settings')
+                return applySettingsMutation(request.mutation as SettingsMutation, payload);
             throw new Error('UNKNOWN_STORAGE_DOMAIN');
         });
         void mutation
-            .then(() => sendResponse({ ok: true }))
+            .then((data) => sendResponse({ ok: true, data }))
             .catch((error) =>
                 sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }),
             );

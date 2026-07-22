@@ -1,6 +1,7 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { applyHistoryMutation } from '../src/history-store';
 import { applyUsageMutation } from '../src/usage-stats';
+import { applySettingsMutation } from '../src/settings-store';
 
 let storage: Record<string, unknown>;
 
@@ -54,4 +55,28 @@ test('не теряет статистику при параллельных з�
         ),
     );
     expect(storage.usageStats).toMatchObject({ requests: 25, totalLatencyMs: 250, byMode: { style: 25 } });
+});
+
+test('не теряет слова словаря при параллельном добавлении', async () => {
+    await Promise.all(
+        Array.from({ length: 30 }, (_, index) =>
+            applySettingsMutation('addPersonalDictionaryWord', { value: `Слово-${index}` }),
+        ),
+    );
+    expect(storage.personalDictionary).toHaveLength(30);
+});
+
+test('атомарно добавляет и удаляет пользовательские команды', async () => {
+    await Promise.all(
+        Array.from({ length: 8 }, (_, index) =>
+            applySettingsMutation('upsertCustomCommand', {
+                command: { id: String(index), name: `Команда ${index}`, prompt: `Инструкция ${index}` },
+            }),
+        ),
+    );
+    await Promise.all([
+        applySettingsMutation('deleteCustomCommand', { id: '2' }),
+        applySettingsMutation('deleteCustomCommand', { id: '5' }),
+    ]);
+    expect(storage.customCommands).toHaveLength(6);
 });

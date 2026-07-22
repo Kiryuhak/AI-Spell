@@ -2,7 +2,12 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
     test: {
-        include: ['tests/unit.spec.ts', 'tests/storage.spec.ts'],
+        include: [
+            'tests/unit.spec.ts',
+            'tests/storage.spec.ts',
+            'tests/content-lifecycle.spec.ts',
+            'tests/site-access.spec.ts',
+        ],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json-summary'],
@@ -17,6 +22,8 @@ export default defineConfig({
                 'src/request-cache.ts',
                 'src/history-store.ts',
                 'src/usage-stats.ts',
+                'src/settings-store.ts',
+                'src/request-lifecycle.ts',
             ],
             thresholds: { lines: 35, functions: 40, statements: 35, branches: 30 },
         },

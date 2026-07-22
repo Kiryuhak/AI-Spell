@@ -1,6 +1,7 @@
 import { clearHistory, deleteHistoryItem, getHistory, setHistoryItemFavorite } from './history-store';
-import type { CustomCommand, HistoryItem, RequestMode } from './types';
+import type { HistoryItem, RequestMode } from './types';
 import { localizeDocument, t } from './i18n';
+import { upsertCustomCommand } from './settings-store';
 
 const MODE_NAMES: Record<RequestMode, string> = {
     spellcheck: t('modeSpellcheck', 'Ошибки'),
@@ -77,9 +78,6 @@ function createHistoryCard(item: HistoryItem): HTMLElement {
             await chrome.runtime.sendMessage({ action: 'replayHistoryItem', item });
         }),
         createButton(t('saveAsCommand', 'Сохранить как команду'), 'secondary-btn', async () => {
-            const stored = await chrome.storage.local.get({ customCommands: [] });
-            const commands = Array.isArray(stored.customCommands) ? (stored.customCommands as CustomCommand[]) : [];
-            if (commands.length >= 8) return;
             const promptByMode: Record<RequestMode, string> = {
                 spellcheck: t(
                     'historyPromptSpellcheck',
@@ -95,12 +93,11 @@ function createHistoryCard(item: HistoryItem): HTMLElement {
                 ocr: t('historyPromptOcr', 'Приведи распознанный текст в аккуратный читаемый вид.'),
                 custom: `${t('historyPromptCustom', 'Обработай текст по аналогии с этим результатом:')} ${item.result.slice(0, 500)}`,
             };
-            commands.push({
+            await upsertCustomCommand({
                 id: crypto.randomUUID(),
                 name: (item.customName || MODE_NAMES[item.mode]).slice(0, 40),
                 prompt: promptByMode[item.mode].slice(0, 2000),
             });
-            await chrome.storage.local.set({ customCommands: commands });
         }),
         createButton(t('delete', 'Удалить'), 'delete-btn', async () => {
             await deleteHistoryItem(item.id);

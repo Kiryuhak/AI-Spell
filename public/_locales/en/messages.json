@@ -141,6 +141,8 @@
     "themeLight": { "message": "☀️ Light" },
     "themeDark": { "message": "🌙 Dark" },
     "appearanceHint": { "message": "Scale applies to the selection toolbar, AI menu, and result window." },
+    "compactResultMode": { "message": "Compact result" },
+    "compactResultModeHint": { "message": "Show only the finished text and replace and copy buttons." },
     "searchEngineLabel": { "message": "Search engine:" },
     "sendContextLong": { "message": "Share page context with Mistral" },
     "sendContextHint": {

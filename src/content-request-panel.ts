@@ -15,6 +15,8 @@ import type { CustomCommand, HistoryItem, RequestMode, SelectionData, StreamResp
 import { recordCacheHit } from './usage-stats';
 import { appendIconAndText, createSvgIcon, renderMarkdown, setIcon } from './dom-rendering';
 import { REQUEST_CACHE_VERSION, serializeCacheSource } from './request-cache';
+import { addPersonalDictionaryWord } from './settings-store';
+import { createRequestLifecycle } from './request-lifecycle';
 
 export interface ContentRequestContext {
     getPopup: () => HTMLElement | null;
@@ -26,6 +28,7 @@ export interface ContentRequestContext {
     adjustPopupPosition: () => void;
     closePopup: () => void;
     startDragging: (offsetX: number, offsetY: number) => void;
+    registerRequestCleanup: (cleanup: () => void) => void;
 }
 
 export function handleActionClick(mode: RequestMode, context: ContentRequestContext): void {
@@ -51,6 +54,12 @@ export function executeRequest(
     let currentTargetLang = context.getTargetLanguage();
     const { getLanguageName, getPopupElementById, adjustPopupPosition, closePopup } = context;
     const originalText = currentSelection.text;
+    let streamPort: chrome.runtime.Port | null = null;
+    const lifecycle = createRequestLifecycle(() => {
+        streamPort?.disconnect();
+        streamPort = null;
+    });
+    context.registerRequestCleanup(lifecycle.dispose);
 
     function showRateLimitTimer(seconds: number, retryCallback: () => void, container: HTMLElement | null): void {
         let timeLeft = seconds;
@@ -74,18 +83,19 @@ export function executeRequest(
             return true;
         };
         if (!render()) return;
-        const interval = setInterval(() => {
+        const interval = lifecycle.setInterval(() => {
             timeLeft--;
             if (timeLeft <= 0) {
-                clearInterval(interval);
-                if (container && container.isConnected) retryCallback();
+                lifecycle.clearInterval(interval);
+                if (!lifecycle.disposed && container && container.isConnected) retryCallback();
             } else if (!render()) {
-                clearInterval(interval);
+                lifecycle.clearInterval(interval);
             }
         }, 1000);
     }
 
     popupUI.dataset.surface = 'result';
+    delete popupUI.dataset.compactResult;
     popupUI.setAttribute('role', 'dialog');
     popupUI.setAttribute('aria-label', t('resultDialog', 'Результат обработки текста'));
     popupUI.style.width = '340px';
@@ -235,9 +245,9 @@ export function executeRequest(
     adjustPopupPosition();
 
     let fullResult = '';
+    let compactResultMode = false;
     let comparisonOriginalVisible = false;
     let editedResultSnapshot = '';
-    let streamPort: chrome.runtime.Port | null = null;
     let usePageContext = false;
     let storageAllowed = false;
     let cacheSettingsFingerprint = 'default';
@@ -271,12 +281,7 @@ export function executeRequest(
     }
 
     async function addToDictionary(word: string): Promise<void> {
-        const data = await chrome.storage.local.get({ personalDictionary: [] });
-        const dictionary = Array.isArray(data.personalDictionary) ? data.personalDictionary.map(String) : [];
-        if (!dictionary.some((item) => item.toLocaleLowerCase('ru-RU') === word.toLocaleLowerCase('ru-RU'))) {
-            dictionary.push(word);
-            await chrome.storage.local.set({ personalDictionary: dictionary.sort((a, b) => a.localeCompare(b, 'ru')) });
-        }
+        await addPersonalDictionaryWord(word);
     }
 
     function toggleCorrection(correction: WordCorrection): void {
@@ -369,6 +374,7 @@ export function executeRequest(
     }
 
     function startStream() {
+        if (lifecycle.disposed) return;
         streamPort?.disconnect();
         streamPort = null;
         fullResult = '';
@@ -431,17 +437,24 @@ export function executeRequest(
             imageUrl: currentSelection.imageUrl, // 🔥 НОВОЕ
         });
         streamPort.onMessage.addListener((response: StreamResponse) => {
+            if (lifecycle.disposed) return;
             if (response.status === 'chunk') {
                 fullResult += response.text;
-                renderMarkdown(contentPane, fullResult);
+                if (compactResultMode) contentPane.textContent = fullResult;
+                else renderMarkdown(contentPane, fullResult);
                 contentPane.setAttribute('aria-live', 'polite');
                 contentPane.scrollTop = contentPane.scrollHeight;
                 adjustPopupPosition();
             } else if (response.status === 'done') {
                 if (mode === 'spellcheck') {
                     fullResult = normalizeSpellcheckResult(fullResult);
-                    wordCorrections = getWordCorrections(currentSelection.text, fullResult);
-                    refreshSpellcheck();
+                    if (compactResultMode) contentPane.textContent = fullResult;
+                    else {
+                        wordCorrections = getWordCorrections(currentSelection.text, fullResult);
+                        refreshSpellcheck();
+                    }
+                } else if (compactResultMode) {
+                    contentPane.textContent = fullResult;
                 } else {
                     renderMarkdown(contentPane, fullResult);
                 }
@@ -512,7 +525,7 @@ export function executeRequest(
         loaderOrClose.appendChild(closeBtn);
 
         if (success && fullResult.trim().length > 0) {
-            if (mode !== 'spellcheck' && mode !== 'ocr') {
+            if (!compactResultMode && mode !== 'spellcheck' && mode !== 'ocr') {
                 contentPane.contentEditable = 'true';
                 contentPane.setAttribute('aria-label', t('editableResult', 'Результат можно редактировать'));
                 resultTools.style.display = 'flex';
@@ -631,7 +644,7 @@ export function executeRequest(
                 e.stopPropagation();
                 navigator.clipboard.writeText(getEffectiveResult());
                 setIcon(copyBtn, ICONS.check);
-                setTimeout(() => setIcon(copyBtn, copyIcon), 1500);
+                lifecycle.setTimeout(() => setIcon(copyBtn, copyIcon), 1500);
             };
 
             actionsContainer.appendChild(replaceBtn);
@@ -646,7 +659,20 @@ export function executeRequest(
             sendPageContext?: boolean;
             contextDisabledSites?: unknown;
             cacheFingerprint?: string;
+            compactResultMode?: boolean;
         };
+        if (lifecycle.disposed) return;
+        compactResultMode = res.compactResultMode === true;
+        if (compactResultMode) {
+            const currentPopup = context.getPopup();
+            if (currentPopup) {
+                currentPopup.dataset.compactResult = 'true';
+                currentPopup.style.width = '300px';
+            }
+            contentPane.style.padding = '12px 14px';
+            contentPane.style.minHeight = '36px';
+            contentPane.style.maxHeight = '36vh';
+        }
         usePageContext =
             res.sendPageContext === true &&
             !isSiteDisabled(location.hostname, normalizeDisabledSites(res.contextDisabledSites));
@@ -682,18 +708,18 @@ export function executeRequest(
             contentPane.replaceChildren(emptyState);
 
             let timeLeft = 3;
-            const interval = setInterval(() => {
+            const interval = lifecycle.setInterval(() => {
                 timeLeft--;
                 if (timerSpan) timerSpan.textContent = timeLeft.toString();
                 if (timeLeft <= 0) {
-                    clearInterval(interval);
+                    lifecycle.clearInterval(interval);
                     chrome.runtime.sendMessage({ action: 'openOptionsPage' });
                     closePopup();
                 }
             }, 1000);
 
             openButton.addEventListener('click', () => {
-                clearInterval(interval);
+                lifecycle.clearInterval(interval);
                 chrome.runtime.sendMessage({ action: 'openOptionsPage' });
                 closePopup();
             });
@@ -713,12 +739,16 @@ export function executeRequest(
                   : mode;
         const cacheModeKey = `v${REQUEST_CACHE_VERSION}:${baseCacheMode}:${cacheSettingsFingerprint}`;
         const cacheKey = await getCacheHash(cacheModeKey, getCacheSource());
+        if (lifecycle.disposed) return;
         const cachedResult = storageAllowed ? await getCachedText(cacheKey) : null;
+        if (lifecycle.disposed) return;
         if (cachedResult) {
             void recordCacheHit();
             fullResult = mode === 'spellcheck' ? normalizeSpellcheckResult(cachedResult) : cachedResult;
-            if (mode === 'spellcheck') wordCorrections = getWordCorrections(currentSelection.text, fullResult);
-            if (mode === 'spellcheck') {
+            if (compactResultMode) {
+                contentPane.textContent = fullResult;
+            } else if (mode === 'spellcheck') {
+                wordCorrections = getWordCorrections(currentSelection.text, fullResult);
                 contentPane.replaceChildren(renderSpellcheckDiffFragment(currentSelection.text, fullResult));
             } else {
                 renderMarkdown(contentPane, fullResult);

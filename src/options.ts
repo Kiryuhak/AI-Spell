@@ -3,18 +3,12 @@ import type { UsageStats } from './types';
 import { clearUsageStats, EMPTY_USAGE_STATS } from './usage-stats';
 import { exportPortableSettings, importPortableSettings } from './settings-transfer';
 import { restoreStyleProfileSettings, setupStyleProfileSettings } from './style-profile-settings';
+import { restoreCustomCommandSettings, setupCustomCommandSettings } from './custom-command-settings';
 
 type AppearanceTheme = 'auto' | 'light' | 'dark';
 
-interface EditableCustomCommand {
-    id: string;
-    name: string;
-    prompt: string;
-}
-
 const systemDarkTheme = window.matchMedia('(prefers-color-scheme: dark)');
 let restoredApiKey = '';
-let customCommands: EditableCustomCommand[] = [];
 
 function clampInterfaceScale(value: number): number {
     return Math.min(110, Math.max(75, Math.round(value / 5) * 5));
@@ -63,66 +57,6 @@ function renderAdaptiveStats(model: unknown): void {
     clearButton.disabled = wordCount === 0 && pairCount === 0;
 }
 
-function resetCustomCommandForm(): void {
-    const form = document.getElementById('customCommandForm') as HTMLFormElement | null;
-    const idInput = document.getElementById('customCommandId') as HTMLInputElement | null;
-    const cancelButton = document.getElementById('cancelCommandEdit') as HTMLButtonElement | null;
-    form?.reset();
-    if (idInput) idInput.value = '';
-    if (cancelButton) cancelButton.hidden = true;
-}
-
-function renderCustomCommands(): void {
-    const list = document.getElementById('customCommandList');
-    if (!list) return;
-    list.replaceChildren();
-    if (customCommands.length === 0) {
-        const empty = document.createElement('p');
-        empty.textContent = t('noCommands', 'Пока нет пользовательских команд.');
-        empty.style.margin = '0 0 4px';
-        list.appendChild(empty);
-        return;
-    }
-    for (const command of customCommands) {
-        const card = document.createElement('article');
-        card.className = 'command-card';
-        const copy = document.createElement('div');
-        const name = document.createElement('strong');
-        name.textContent = command.name;
-        const prompt = document.createElement('span');
-        prompt.textContent = command.prompt;
-        copy.append(name, prompt);
-        const actions = document.createElement('div');
-        actions.className = 'command-card-actions';
-        const edit = document.createElement('button');
-        edit.type = 'button';
-        edit.className = 'command-icon-button';
-        edit.title = t('edit', 'Изменить');
-        edit.textContent = '✎';
-        edit.setAttribute('aria-label', `${edit.title}: ${command.name}`);
-        edit.onclick = () => {
-            (document.getElementById('customCommandId') as HTMLInputElement).value = command.id;
-            (document.getElementById('customCommandName') as HTMLInputElement).value = command.name;
-            (document.getElementById('customCommandPrompt') as HTMLTextAreaElement).value = command.prompt;
-            (document.getElementById('cancelCommandEdit') as HTMLButtonElement).hidden = false;
-        };
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'command-icon-button';
-        remove.title = t('delete', 'Удалить');
-        remove.textContent = '×';
-        remove.setAttribute('aria-label', `${remove.title}: ${command.name}`);
-        remove.onclick = async () => {
-            customCommands = customCommands.filter((item) => item.id !== command.id);
-            await chrome.storage.local.set({ customCommands });
-            renderCustomCommands();
-        };
-        actions.append(edit, remove);
-        card.append(copy, actions);
-        list.appendChild(card);
-    }
-}
-
 function renderUsageStats(stats: UsageStats): void {
     const requests = document.getElementById('usageRequests');
     const hits = document.getElementById('usageCacheHits');
@@ -131,45 +65,6 @@ function renderUsageStats(stats: UsageStats): void {
     if (hits) hits.textContent = String(stats.cacheHits);
     if (latency)
         latency.textContent = stats.requests ? `${(stats.totalLatencyMs / stats.requests / 1000).toFixed(1)} с` : '0 с';
-}
-
-function setupCustomCommands(): void {
-    const form = document.getElementById('customCommandForm') as HTMLFormElement | null;
-    const idInput = document.getElementById('customCommandId') as HTMLInputElement | null;
-    const nameInput = document.getElementById('customCommandName') as HTMLInputElement | null;
-    const promptInput = document.getElementById('customCommandPrompt') as HTMLTextAreaElement | null;
-    if (!form || !idInput || !nameInput || !promptInput) return;
-    form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const name = nameInput.value.trim().slice(0, 40);
-        const prompt = promptInput.value.trim().slice(0, 2000);
-        if (!name || !prompt) return;
-        if (!idInput.value && customCommands.length >= 8) {
-            const status = document.getElementById('status');
-            if (status) {
-                status.textContent = t('commandLimit', 'Можно создать не более 8 команд.');
-                status.style.color = '#d97706';
-                status.style.display = 'block';
-            }
-            return;
-        }
-        const command: EditableCustomCommand = { id: idInput.value || crypto.randomUUID(), name, prompt };
-        const index = customCommands.findIndex((item) => item.id === command.id);
-        if (index >= 0) customCommands[index] = command;
-        else customCommands.push(command);
-        await chrome.storage.local.set({ customCommands });
-        resetCustomCommandForm();
-        renderCustomCommands();
-    });
-    document.getElementById('cancelCommandEdit')?.addEventListener('click', resetCustomCommandForm);
-    document.querySelectorAll<HTMLButtonElement>('.preset-button').forEach((button) => {
-        button.addEventListener('click', () => {
-            idInput.value = '';
-            nameInput.value = t(button.dataset.commandNameKey || '', button.dataset.commandName || '');
-            promptInput.value = t(button.dataset.commandPromptKey || '', button.dataset.commandPrompt || '');
-            nameInput.focus();
-        });
-    });
 }
 
 function activateSettingsTab(tabName: string): void {
@@ -247,6 +142,7 @@ async function saveOptions(): Promise<void> {
     const toneSelect = document.getElementById('toneSelect') as HTMLSelectElement;
     const themeSelect = document.getElementById('themeSelect') as HTMLSelectElement;
     const interfaceScaleInput = document.getElementById('interfaceScale') as HTMLInputElement;
+    const compactResultModeInput = document.getElementById('compactResultMode') as HTMLInputElement;
     const adaptiveSuggestionsInput = document.getElementById('adaptiveSuggestionsEnabled') as HTMLInputElement;
     const adaptiveLearningInput = document.getElementById('adaptiveLearningEnabled') as HTMLInputElement;
     const searchSelect = document.getElementById('searchEngine') as HTMLSelectElement;
@@ -271,6 +167,7 @@ async function saveOptions(): Promise<void> {
         selectedTone: toneSelect.value,
         selectedTheme: themeSelect.value,
         interfaceScale: clampInterfaceScale(Number(interfaceScaleInput.value) || 90),
+        compactResultMode: compactResultModeInput.checked,
         adaptiveSuggestionsEnabled: adaptiveSuggestionsInput.checked,
         adaptiveLearningEnabled: adaptiveLearningInput.checked,
         searchEngine: searchSelect.value,
@@ -332,6 +229,7 @@ async function restoreOptions(): Promise<void> {
     const toneSelect = document.getElementById('toneSelect') as HTMLSelectElement;
     const themeSelect = document.getElementById('themeSelect') as HTMLSelectElement;
     const interfaceScaleInput = document.getElementById('interfaceScale') as HTMLInputElement;
+    const compactResultModeInput = document.getElementById('compactResultMode') as HTMLInputElement;
     const adaptiveSuggestionsInput = document.getElementById('adaptiveSuggestionsEnabled') as HTMLInputElement;
     const adaptiveLearningInput = document.getElementById('adaptiveLearningEnabled') as HTMLInputElement;
     const searchSelect = document.getElementById('searchEngine') as HTMLSelectElement;
@@ -348,6 +246,7 @@ async function restoreOptions(): Promise<void> {
         selectedTone: 'business',
         selectedTheme: 'auto',
         interfaceScale: 90,
+        compactResultMode: false,
         adaptiveSuggestionsEnabled: false,
         adaptiveLearningEnabled: true,
         adaptiveLanguageModel: { version: 2, words: {}, pairs: {}, rejections: {} },
@@ -370,6 +269,7 @@ async function restoreOptions(): Promise<void> {
     toneSelect.value = items.selectedTone as string;
     themeSelect.value = items.selectedTheme as string;
     interfaceScaleInput.value = String(clampInterfaceScale(Number(items.interfaceScale) || 90));
+    compactResultModeInput.checked = items.compactResultMode === true;
     adaptiveSuggestionsInput.checked = items.adaptiveSuggestionsEnabled === true;
     adaptiveLearningInput.checked = items.adaptiveLearningEnabled !== false;
     searchSelect.value = items.searchEngine as string;
@@ -380,14 +280,7 @@ async function restoreOptions(): Promise<void> {
     personalDictionaryInput.value = Array.isArray(items.personalDictionary) ? items.personalDictionary.join('\n') : '';
     aiModeSelect.value = items.aiMode === 'fast' ? 'fast' : 'quality';
     glossaryInput.value = Array.isArray(items.glossary) ? items.glossary.join('\n') : '';
-    customCommands = Array.isArray(items.customCommands)
-        ? items.customCommands
-              .filter((item: unknown): item is EditableCustomCommand =>
-                  Boolean(item && typeof item === 'object' && 'id' in item && 'name' in item && 'prompt' in item),
-              )
-              .slice(0, 8)
-        : [];
-    renderCustomCommands();
+    restoreCustomCommandSettings(items.customCommands);
     restoreStyleProfileSettings(items.styleProfiles, items.activeStyleProfileId);
     renderUsageStats(items.usageStats as UsageStats);
     updateAppearancePreview();
@@ -409,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     themeSelect?.addEventListener('change', updateAppearancePreview);
     interfaceScaleInput?.addEventListener('input', updateAppearancePreview);
     adaptiveSuggestionsInput?.addEventListener('change', updateAdaptiveControls);
-    setupCustomCommands();
+    setupCustomCommandSettings();
     setupStyleProfileSettings();
     document.querySelectorAll<HTMLButtonElement>('.settings-tab').forEach((button) => {
         button.addEventListener('click', () => activateSettingsTab(button.dataset.tab || 'main'));

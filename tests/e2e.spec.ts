@@ -24,7 +24,7 @@ const test = base.extend({
                     return settings.settingsSchemaVersion;
                 }),
             )
-            .toBe(4);
+            .toBe(5);
         await use(context);
         await context.close();
     },
@@ -41,6 +41,7 @@ async function setFakeApiKey(context: BrowserContext) {
             mistralApiKey: 'mock-test-key-123',
             selectedTone: 'business',
             sendPageContext: false,
+            compactResultMode: false,
         });
     });
 }
@@ -152,6 +153,51 @@ test('Панель выделения появляется автоматиче�
         await icons.evaluateAll((nodes) => nodes.every((node) => node.namespaceURI === 'http://www.w3.org/2000/svg')),
     ).toBe(true);
     expect(await toolbar.locator('svg path, svg line, svg rect, svg circle, svg polyline').count()).toBeGreaterThan(0);
+});
+
+test('Повторная инъекция не дублирует content script и обработчики', async ({ page, context }) => {
+    await page.goto('https://example.com');
+    const tabId = await grantSiteAccess(context, page);
+    let [background] = context.serviceWorkers();
+    if (!background) background = await context.waitForEvent('serviceworker');
+    await Promise.all([
+        background.evaluate(
+            (id) => chrome.scripting.executeScript({ target: { tabId: id }, files: ['inject.js'] }),
+            tabId,
+        ),
+        background.evaluate(
+            (id) => chrome.scripting.executeScript({ target: { tabId: id }, files: ['inject.js'] }),
+            tabId,
+        ),
+    ]);
+    const initialized = await background.evaluate(async (id) => {
+        const results = await chrome.scripting.executeScript({
+            target: { tabId: id },
+            func: () =>
+                Boolean(
+                    (globalThis as typeof globalThis & { __lexisyncContentInitialized?: boolean })
+                        .__lexisyncContentInitialized,
+                ),
+        });
+        return results.every((result) => result.result === true);
+    }, tabId);
+    expect(initialized).toBe(true);
+    await selectTextOnPage(page, 'h1');
+    await page.locator('h1').dispatchEvent('mouseup', { button: 0, clientX: 180, clientY: 90 });
+    await expect(page.locator('#lexisync-shadow-host')).toHaveCount(1);
+});
+
+test('Закрытие панели отменяет таймер перехода в настройки', async ({ page, context }) => {
+    await clearApiKey(context);
+    await page.goto('https://example.com');
+    await grantSiteAccess(context, page);
+    await selectTextOnPage(page, 'h1');
+    await page.keyboard.press('Alt+r');
+    await expect(page.locator('#lexisync-extension-ui')).toContainText('API-ключ не настроен');
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
+    await expect(page.locator('#lexisync-shadow-host')).toHaveCount(0);
+    await page.waitForTimeout(3_500);
+    expect(context.pages().some((candidate) => candidate.url().includes('options.html'))).toBe(false);
 });
 
 test('Проверка ошибок подсвечивает только исправленные слова', async ({ page, context }) => {
@@ -434,7 +480,7 @@ test('Персональная подсказка дополняет изуче�
     if (!background) background = await context.waitForEvent('serviceworker');
     await background.evaluate(() =>
         chrome.storage.local.set({
-            settingsSchemaVersion: 4,
+            settingsSchemaVersion: 5,
             adaptiveSuggestionsEnabled: true,
             adaptiveLearningEnabled: true,
             adaptiveLanguageModel: {
@@ -525,6 +571,46 @@ test('Настройки сохраняют визуальный контрак�
         await page.locator('[data-tab="privacy"]').click();
         await expect(page.locator('[data-tab="privacy"]')).toHaveAttribute('aria-selected', 'true');
     }
+});
+
+test('Компактный режим настраивается и показывает только готовый текст с основными действиями', async ({
+    page,
+    context,
+}) => {
+    await setFakeApiKey(context);
+    let [background] = context.serviceWorkers();
+    if (!background) background = await context.waitForEvent('serviceworker');
+    await background.evaluate(() => chrome.storage.local.set({ onboardingCompleted: true }));
+    const extensionId = new URL(background.url()).host;
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await page.locator('[data-tab="appearance"]').click();
+    await page.locator('#compactResultMode').check();
+    await page.locator('#saveBtn').click();
+    await expect
+        .poll(() => background.evaluate(() => chrome.storage.local.get('compactResultMode')))
+        .toEqual({
+            compactResultMode: true,
+        });
+
+    await context.route('https://api.mistral.ai/v1/chat/completions', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'text/event-stream',
+            body: 'data: {"choices":[{"delta":{"content":"Готовый компактный текст"}}]}\n\ndata: [DONE]\n\n',
+        });
+    });
+    await page.goto('https://example.com');
+    await grantSiteAccess(context, page);
+    await selectTextOnPage(page, 'h1');
+    await page.keyboard.press('Alt+r');
+
+    const panel = page.locator('#lexisync-extension-ui');
+    await expect(panel.locator('.lexisync-content-pane')).toHaveText('Готовый компактный текст');
+    await expect(panel.locator('.lexisync-result-button')).toHaveCount(2);
+    await expect(panel.locator('.lexisync-corrections')).toBeHidden();
+    await expect(panel.locator('.lexisync-result-tools')).toBeHidden();
+    await expect(panel.locator('mark')).toHaveCount(0);
 });
 
 test('Страницы расширения проходят автоматический accessibility-аудит', async ({ page, context }) => {
@@ -759,7 +845,7 @@ test('Профиль стиля автоматически выбирается 
     if (!background) background = await context.waitForEvent('serviceworker');
     await background.evaluate(() =>
         chrome.storage.local.set({
-            settingsSchemaVersion: 4,
+            settingsSchemaVersion: 5,
             mistralApiKey: 'mock-test-key-123',
             styleProfiles: [
                 { id: 'default', name: 'Обычный', tone: 'custom', instruction: 'Используй обычный стиль.', sites: [] },

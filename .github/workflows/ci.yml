@@ -32,11 +32,20 @@ jobs:
             - name: Проверить код линтером
               run: npm run lint
 
+            - name: Проверить форматирование
+              run: npm run format:check
+
+            - name: Проверить production-зависимости
+              run: npm audit --omit=dev
+
             - name: Запустить модульные тесты
               run: npm run test:coverage
 
             - name: Собрать Chrome и Firefox
               run: npm run build
+
+            - name: Проверить разрешения production-манифестов
+              run: npm run verify:manifests
 
             - name: Проверить Chrome
               run: xvfb-run -a npm run test:e2e
@@ -55,4 +64,11 @@ jobs:
               with:
                   name: lexisync-builds
                   path: .output/*.zip
+                  retention-days: 14
+
+            - name: Сохранить отчёт покрытия
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage-summary
+                  path: coverage/coverage-summary.json
                   retention-days: 14

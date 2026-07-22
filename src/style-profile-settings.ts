@@ -1,6 +1,7 @@
 import { t } from './i18n';
 import { normalizeSitePatterns } from './site-profiles';
 import type { StyleProfile } from './types';
+import { replaceStyleProfiles } from './settings-store';
 
 let profiles: StyleProfile[] = [];
 let activeProfileId = '';
@@ -76,7 +77,7 @@ function render(): void {
             iconButton(`${t('delete', 'Удалить')}: ${profile.name}`, '×', async () => {
                 profiles = profiles.filter((item) => item.id !== profile.id);
                 if (activeProfileId === profile.id) activeProfileId = '';
-                await chrome.storage.local.set({ styleProfiles: profiles, activeStyleProfileId: activeProfileId });
+                await replaceStyleProfiles(profiles, activeProfileId);
                 render();
             }),
         );
@@ -122,7 +123,7 @@ export function setupStyleProfileSettings(): void {
         if (index >= 0) profiles[index] = profile;
         else profiles.push(profile);
         if (!activeProfileId) activeProfileId = profile.id;
-        await chrome.storage.local.set({ styleProfiles: profiles, activeStyleProfileId: activeProfileId });
+        await replaceStyleProfiles(profiles, activeProfileId);
         resetForm();
         render();
     });
